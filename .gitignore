@@ -1,0 +1,26 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+.vs/
+
+# Frontend
+**/node_modules/
+frontend/dist/
+frontend/.env
+
+# Secrets
+.env
+.env.local
+**/*.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Plans terminés (optionnel - à toi de décider)
+# plans/done/
