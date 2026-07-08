@@ -17,9 +17,15 @@
 
 ## Conventions
 - Commits : `feat:` / `fix:` / `chore:` / `test:` / `docs:`
-- Branches : `feature/kebab-case`, `fix/kebab-case`, `chore/kebab-case`
+- Branches : `feature/kebab-case`, `fix/kebab-case`, `chore/kebab-case`, créées depuis `develop`
 - Une PR = une feature = un plan dans `plans/`
 - Tests écrits en même temps que le code, jamais après
+
+## Git flow
+- `main` : branche protégée (PR obligatoire, pas de push direct, pas de force-push) — reflète ce qui est prêt à déployer
+- `develop` : branche d'intégration — toute feature/fix/chore part d'ici
+- Cycle : `feature/xxx` (depuis `develop`) → PR vers `develop` → de temps en temps, PR `develop` → `main`
+- Ne jamais commit directement sur `main` ou `develop`
 
 ## Architecture
 - **Vertical Slice Architecture** — un dossier par feature, un dossier par use case
