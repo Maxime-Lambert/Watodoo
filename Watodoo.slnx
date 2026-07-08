@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Watodoo.Api/Watodoo.Api.csproj" />
+  <Project Path="Watodoo.Tests/Watodoo.Tests.csproj" />
+</Solution>

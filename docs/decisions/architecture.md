@@ -1,4 +1,4 @@
-# Décisions d'architecture — Vespr
+# Décisions d'architecture — Watodoo
 
 ## Structure générale
 
@@ -11,9 +11,10 @@ de la friction sans apporter de valeur à cette échelle.
 
 **Structure** :
 ```
-vespr/
-├── src/                  ← ASP.NET Core
-├── frontend/             ← React
+watodoo/
+├── Watodoo.Api/          ← ASP.NET Core, tout le code applicatif
+├── Watodoo.Tests/        ← xUnit + Testcontainers
+├── frontend/              ← React
 ├── docker-compose.yml
 └── .github/workflows/
 ```
@@ -31,7 +32,8 @@ d'ORM, de base de données) qui n'arrivera pas sur ce projet.
 
 **Structure type** :
 ```
-src/Features/Films/
+Watodoo.Api/Features/Films/
+├── Film.cs                      ← entité de domaine
 ├── GetAll/
 │   ├── GetAllFilmsQuery.cs
 │   ├── GetAllFilmsQueryHandler.cs
@@ -41,19 +43,25 @@ src/Features/Films/
 │   └── ...
 └── Rate/
     └── ...
-src/Exceptions/
-    ├── NotFoundException.cs
-    └── ValidationException.cs
-src/Middleware/
+Watodoo.Api/Shared/
+    ├── Exceptions/
+    │   ├── NotFoundException.cs
+    │   └── ValidationException.cs
+Watodoo.Api/Middleware/
     └── ExceptionMiddleware.cs
+Watodoo.Tests/Features/Films/
+    └── GetAll/
+        └── GetAllFilmsQueryHandlerTests.cs
 ```
 
 ### Namespaces
-**Décision** : namespace racine `Vespr`, pas `Vespr.Api`.
+**Décision** : namespace racine `Watodoo`, pas `Watodoo.Api`.
 
-**Raison** : le suffixe `.Api` est redondant pour un projet backend unique.
+**Raison** : le suffixe `.Api` est redondant même si le projet s'appelle
+`Watodoo.Api` — le nom de projet sert à distinguer applicatif/tests, pas à
+préfixer chaque namespace.
 
-**Exemple** : `namespace Vespr.Features.Films.GetAll`
+**Exemple** : `namespace Watodoo.Features.Films.GetAll`
 
 ### CQRS sans MediatR
 **Décision** : pattern Command/Query avec handlers injectés directement via DI.
@@ -64,7 +72,7 @@ directs sont plus simples à tracer en debug et sans dépendance tierce.
 **Pattern** :
 ```csharp
 // Handler
-public class GetAllFilmsQueryHandler(VesprDbContext db)
+public class GetAllFilmsQueryHandler(WatodooDbContext db)
 {
     public async Task<List<GetAllFilmsResponse>> Handle(
         GetAllFilmsQuery query, CancellationToken ct) { ... }
@@ -181,7 +189,7 @@ complexes. Partir sans évite une dépendance non nécessaire au MVP.
 ### Internationalisation
 **Décision** : `i18next` + `react-i18next`. Français par défaut, anglais disponible.
 
-**Raison** : Vespr a vocation à dépasser le marché français. L'i18n dès le MVP
+**Raison** : Watodoo a vocation à dépasser le marché français. L'i18n dès le MVP
 évite une migration douloureuse plus tard.
 
 ---
