@@ -298,31 +298,42 @@ workflows), et un nouveau sous-agent `architecture-reviewer` intégré au flow
 `/pr` aux côtés de `code-reviewer`. `/plan` exige désormais une justification
 des tests par catégorie pour chaque feature.
 
-**Limites de vérification à connaître** (aucune n'est une régression, toutes
-préexistantes ou propres à cet environnement de développement) :
-- Docker indisponible dans ce WSL (intégration Docker Desktop non activée) :
-  les tests fonctionnels/intégration (Testcontainers) et Stryker n'ont pas pu
-  être exécutés en conditions réelles ici, seulement leur câblage/compilation.
-  **À faire côté utilisateur** : `dotnet test` complet et
-  `./scripts/run-mutation-tests.sh` sur une machine avec Docker actif.
-- Playwright a nécessité un contournement sans `sudo` (librairies système
-  extraites manuellement) pour vérifier un seul run local — non reproduit
-  dans le repo ; en CI (`ubuntu-latest`), `playwright install --with-deps`
-  fonctionnera normalement sans intervention.
-- Les workflows GitHub Actions (`ci.yml`, `mutation.yml`) n'ont pas été
-  vérifiés via une vraie PR (pas d'action Git prise sans validation
-  explicite). **À faire côté utilisateur** : ouvrir une PR de test vers
-  `develop` pour confirmer que les checks apparaissent et passent.
-- `pnpm lint` a été retiré du CI : il échoue déjà sur 2 points préexistants
-  et hors périmètre de ce chantier (`eslint.config.ts` non couvert par
+**PR #2** (`chore/test-workflow-and-enforcement` → `develop`, mergée) a validé
+en conditions réelles ce qui ne pouvait pas l'être dans l'environnement de dev
+sandboxé sans Docker : le job `backend-test` a fait tourner `dotnet test`
+complet (unitaire + intégration + **fonctionnel/Testcontainers** +
+architecture) avec succès sur `ubuntu-latest`, et `frontend-test` a validé
+Vitest + Playwright. Deux bugs de config CI découverts et corrigés dans la
+même PR :
+- `pnpm/action-setup@v4` exigeait une version pnpm explicite → ajout du champ
+  `packageManager` dans `frontend/package.json`.
+- L'action cherchait `package.json` à la racine du repo au lieu de
+  `frontend/` (le `working-directory` par défaut ne s'applique qu'aux étapes
+  `run`, pas aux inputs d'action) → ajout de `package_json_file:
+  frontend/package.json`.
+
+**PR #3** (`chore/ci-push-trigger` → `develop`, mergée) a ajouté un
+déclencheur `push` sur `develop`/`main` en plus de `pull_request` (un merge
+commit non fast-forward n'était sinon jamais retesté sur la branche cible
+elle-même) — confirmé fonctionnel : un run `push` s'est déclenché
+automatiquement sur `develop` juste après le merge et est passé au vert.
+
+**Limites restantes, connues et volontairement non traitées** :
+- Mutation testing (`mutation.yml`, déclenché sur PR vers `main` uniquement)
+  n'a pas encore tourné en conditions réelles — aucune PR vers `main` n'a eu
+  lieu depuis ce chantier. À vérifier à la prochaine PR `develop` → `main`.
+- `pnpm lint` a été retiré du CI : il échoue sur 2 points préexistants et
+  hors périmètre de ce chantier (`eslint.config.ts` non couvert par
   `tsconfig`, assertion non-null dans `main.tsx`). À corriger séparément si
   tu veux un jour l'intégrer comme gate.
 - La protection de branche GitHub (statuts obligatoires sur `develop`/`main`)
   reste à activer manuellement dans les settings GitHub — hors de portée
   d'un agent, abandonné à ta demande.
+- Playwright avait nécessité un contournement sans `sudo` pour un run local
+  dans l'environnement de dev sandboxé ; non pertinent en CI, où
+  `playwright install --with-deps` fonctionne nativement (confirmé par PR #2).
 
 ## Deployment Plan
 Rien à déployer : uniquement de l'outillage dev/CI, aucun changement de
-comportement applicatif. Une fois la PR mergée vers `develop`, chaque
-développeur (solo ici) doit exécuter une fois
-`git config core.hooksPath .githooks` pour activer le hook local.
+comportement applicatif. Chaque développeur (solo ici) doit exécuter une fois
+par clone `git config core.hooksPath .githooks` pour activer le hook local.
