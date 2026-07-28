@@ -3,6 +3,12 @@
 **/obj/
 *.user
 .vs/
+**/StrykerOutput/
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
+frontend/playwright/.cache/
 
 # Frontend
 **/node_modules/

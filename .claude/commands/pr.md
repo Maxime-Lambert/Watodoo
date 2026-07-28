@@ -10,6 +10,10 @@
 2. Lancer le code-reviewer sur le diff complet de la feature.
    Corriger tous les points 🔴 Bloquants et 🟠 Importants avant de continuer.
 
+2bis. Lancer l'architecture-reviewer sur le même diff (clean code, respect
+   de la Vertical Slice Architecture). Corriger tous les points 🔴 Bloquants
+   et 🟠 Importants avant de continuer.
+
 3. Générer un message de commit conventionnel :
    ```
    feat(scope): description courte
