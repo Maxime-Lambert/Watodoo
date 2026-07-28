@@ -19,6 +19,18 @@ cd src && dotnet run     # démarre l'API
 cd frontend && pnpm dev  # démarre le frontend
 ```
 
+## Tests
+
+Voir `docs/testing-strategy.md` pour le détail des catégories de tests.
+
+Une fois après le clone, activer le hook pre-push qui fait tourner la suite
+rapide (unitaire + intégration + architecture backend, unitaire frontend)
+avant chaque push :
+
+```bash
+git config core.hooksPath .githooks
+```
+
 ## Licence
 
 MIT — voir [LICENSE](LICENSE)

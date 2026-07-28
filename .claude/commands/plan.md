@@ -13,7 +13,12 @@ Avant d'écrire la moindre ligne de code :
    - Objectif de la feature en 1-2 phrases
    - Fichiers à créer / modifier avec chemins exacts
    - Ordre d'implémentation (phases)
-   - Tests à écrire pour chaque phase
+   - Tests à écrire pour chaque phase, listés par catégorie (voir
+     `docs/testing-strategy.md`) : unitaire / intégration / fonctionnel /
+     interface / QA e2e / architecture / mutation. Toutes les catégories ne
+     s'appliquent pas à chaque feature — justifier explicitement lesquelles
+     s'appliquent et pourquoi les autres sont omises (ex : "pas de test QA
+     e2e ici, pas de nouveau parcours utilisateur critique").
    - Edge cases à couvrir
    - Décisions d'architecture spécifiques à cette feature
 

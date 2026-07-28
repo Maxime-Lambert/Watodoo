@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "→ dotnet test (unitaire + intégration + architecture)..."
+dotnet test --filter "FullyQualifiedName!~Functional"
+
+echo "→ pnpm test (frontend)..."
+(cd frontend && pnpm test)
+
+echo "✓ Tests rapides verts, push autorisé."
+echo "  (Fonctionnel/Playwright/mutation ne tournent qu'en CI, voir docs/testing-strategy.md)"

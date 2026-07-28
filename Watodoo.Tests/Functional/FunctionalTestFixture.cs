@@ -1,22 +1,21 @@
-using System.Net;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Testcontainers.PostgreSql;
 
-namespace Watodoo.Tests.Features.Health;
+namespace Watodoo.Tests.Functional;
 
-public sealed class HealthEndpointTests : IAsyncLifetime
+public sealed class FunctionalTestFixture : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:18-alpine").Build();
 
-    private WebApplicationFactory<Program> _factory = null!;
+    public WebApplicationFactory<Program> Factory { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
 
-        _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             builder.ConfigureAppConfiguration((_, config) =>
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
@@ -27,17 +26,10 @@ public sealed class HealthEndpointTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        await _factory.DisposeAsync();
+        await Factory.DisposeAsync();
         await _postgres.DisposeAsync();
     }
-
-    [Fact]
-    public async Task Health_endpoint_returns_ok()
-    {
-        var client = _factory.CreateClient();
-
-        var response = await client.GetAsync("/health");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
 }
+
+[CollectionDefinition(nameof(FunctionalTestCollection))]
+public sealed class FunctionalTestCollection : ICollectionFixture<FunctionalTestFixture>;

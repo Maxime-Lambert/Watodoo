@@ -55,3 +55,4 @@
 - Plan actif : `plans/active-plan.md`
 - Décisions d'architecture : `docs/decisions/`
 - Guide migrations : `docs/migrations.md`
+- Stratégie de tests : `docs/testing-strategy.md`
