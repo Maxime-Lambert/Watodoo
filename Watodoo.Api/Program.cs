@@ -44,22 +44,25 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddEntityFrameworkStores<WatodooDbContext>()
     .AddDefaultTokenProviders();
 
-builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+// ValidateOnStart : échoue au démarrage du host (avant toute requête HTTP) si la clé est
+// absente/trop courte, plutôt qu'à la première authentification. Fonctionne sous
+// WebApplicationFactory car les hosted services de validation démarrent après Build(),
+// point auquel les surcharges de config des tests sont déjà appliquées.
+builder.Services.AddOptions<JwtOptions>()
+    .BindConfiguration("Jwt")
+    .Validate(
+        o => !string.IsNullOrWhiteSpace(o.SigningKey) && Encoding.UTF8.GetByteCount(o.SigningKey) >= 32,
+        "Jwt:SigningKey doit être configurée (dotnet user-secrets en local) et faire au moins 32 octets (256 bits) pour HS256.")
+    .ValidateOnStart();
 
-// Lecture différée (pas de variable capturée au niveau du builder) : sous WebApplicationFactory,
-// les surcharges de config des tests ne sont appliquées qu'après l'exécution synchrone de ce
-// fichier, donc toute lecture eager de builder.Configuration ici ignorerait ces surcharges.
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // Lecture différée : sous WebApplicationFactory, les surcharges de config des tests
+        // ne sont appliquées qu'après l'exécution synchrone de ce fichier, donc une variable
+        // capturée au niveau du builder ignorerait ces surcharges.
         var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()
             ?? throw new InvalidOperationException("Configuration 'Jwt' manquante (Issuer/Audience/SigningKey).");
-
-        if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey) || Encoding.UTF8.GetByteCount(jwtOptions.SigningKey) < 32)
-        {
-            throw new InvalidOperationException(
-                "Jwt:SigningKey doit être configurée (dotnet user-secrets en local) et faire au moins 32 octets (256 bits) pour HS256.");
-        }
 
         options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters

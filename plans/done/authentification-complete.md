@@ -479,10 +479,73 @@ disposant d'un accès `sudo` interactif — le CI (`ci.yml`) n'a pas ce
 problème, il tourne déjà en root.
 
 ## Final Recap
-_(à écrire une fois toutes les phases terminées)_
+
+Feature complète et mergeable : authentification email/password avec
+auto-login, JWT bearer (1h) + refresh token rotatif (90 jours, hashé SHA-256
+en base, cookie HttpOnly), déconnexion, `/me`. Backend en Vertical Slice
+Architecture (`Features/Auth/`), ASP.NET Core Identity sans rôles
+(`IdentityUserContext`). Frontend : store Zustand (token en mémoire), hooks
+React Query, pages Login/Register, réhydratation silencieuse au chargement.
+
+**Deux passages de review** (`architecture-reviewer` + `code-reviewer`,
+lancés deux fois — avant et après les fixes découverts en exécutant les tests
+avec Docker/Playwright) : au final, **0 bloquant, 0 important** restant.
+Corrections notables apportées suite aux reviews :
+- Refresh tokens hashés (SHA-256), jamais stockés en clair
+- Rate limiting sur `/auth` (protection brute-force basique)
+- Rotation du refresh token atomique (`ExecuteUpdateAsync`) — race condition
+  TOCTOU éliminée
+- Validation de `Jwt:SigningKey` au démarrage via `ValidateOnStart()` (fail
+  fast avant toute requête, y compris sous `WebApplicationFactory`)
+- Déduplication (validation, émission de tokens), un test d'architecture
+  ajouté (`Shared` ne dépend de `Features` que via `WatodooDbContext`)
+- Suppression de code mort frontend (`useMe`/`getMe`/`MeResponse`, jamais
+  utilisés)
+
+**3 bugs réels trouvés en faisant tourner les tests pour de vrai** (pas
+seulement en review) :
+1. Les lectures de config eager dans `Program.cs` (avant `builder.Build()`)
+   ignoraient les surcharges de `WebApplicationFactory` en tests — déplacées
+   dans les délégués différés (`AddJwtBearer`/`AddCors`/`AddRateLimiter`)
+2. `WebApplicationFactory.CreateClient()` gère les cookies automatiquement
+   par défaut, ce qui faussait le test de rotation du refresh token —
+   `HandleCookies = false` explicite dans `AuthEndpointsTests`
+3. Après logout depuis le formulaire register, l'app réaffichait le
+   formulaire register au lieu de login (trouvé par le test de parcours QA
+   Playwright) — corrigé en réinitialisant le mode de façon synchrone dans
+   le handler de clic (pas via un `useEffect`, qui aurait souffert d'une
+   course avec le démontage du composant au clear() du store)
+
+**État final vérifié réellement (pas seulement "devrait passer")** :
+- `dotnet test` : 28/28 verts, stable sur plusieurs exécutions, avec Docker
+  réel (Testcontainers)
+- `pnpm test` (Vitest) : 4/4 verts
+- `pnpm build` + `pnpm lint` : succès (2 erreurs de lint restantes,
+  préexistantes, non liées à cette feature)
+- `pnpm test:e2e` (Playwright component) : 4/4 verts
+- `pnpm test:e2e:journeys` (Playwright, backend + Postgres + Redis réels) :
+  1/1 vert
+- Migration EF Core appliquée avec succès à une base réelle
+
+**Reporté à un suivi ultérieur** (ajouté à `docs/roadmap.md`, pas bloquant
+pour ce MVP pre-prod) : vérification email à l'inscription, nettoyage
+périodique des refresh tokens expirés/révoqués, révocation en cascade sur
+réutilisation détectée, rate limiter partitionné par IP (actuellement un
+compteur global), lockout de compte après échecs de connexion répétés,
+suppression de compte (RGPD, déjà prévue Semaine 7).
+
+PR : https://github.com/Maxime-Lambert/Watodoo/pull/5
 
 ## Deployment Plan
-_(à écrire une fois toutes les phases terminées — pas de déploiement auto VPS
-existant à ce stade, cf. `docs/roadmap.md` Semaine 1 ; migration à appliquer
-manuellement en prod via `dotnet ef database update` selon `docs/migrations.md`
-une fois ce guide écrit)_
+
+Pas de déploiement automatique vers le VPS à ce stade du projet (cf.
+`docs/roadmap.md` Semaine 1 — CI/CD déploiement auto pas encore fait).
+Une fois la CI/CD de déploiement en place :
+- Appliquer la migration `AddAuthIdentity` en prod via
+  `dotnet ef database update` (manuel, jamais automatique au démarrage —
+  règle explicite de `docs/decisions/architecture.md`), selon le guide
+  `docs/migrations.md` (à écrire)
+- Configurer `Jwt:SigningKey` en prod via secret GitHub Actions injecté en
+  variable d'environnement sur le VPS (jamais dans un fichier versionné)
+- Configurer `Cors:AllowedOrigins` avec le(s) vrai(s) domaine(s) frontend de
+  prod (actuellement seul `http://localhost:5173` est configuré, en dev)
