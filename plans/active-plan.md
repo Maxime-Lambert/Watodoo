@@ -125,37 +125,37 @@ en Phase 3 qui appliquent le schéma via Testcontainers.
 `Jwt:Issuer`/`Jwt:Audience` dans `appsettings.json` (non-secrets).
 
 ## Phase 2: Use cases backend (Register, Login, Refresh, Logout, Me)
-Status: Not started
+Status: Complete
 
-- [ ] `Features/Auth/JwtTokenGenerator.cs` : `GenerateAccessToken(ApplicationUser)`,
+- [x] `Features/Auth/JwtTokenGenerator.cs` : `GenerateAccessToken(ApplicationUser)`,
       `GenerateRefreshTokenValue()`
-- [ ] `Features/Auth/Register/` : `RegisterCommand`, `RegisterCommandValidator`
+- [x] `Features/Auth/Register/` : `RegisterCommand`, `RegisterCommandValidator`
       (email format, password non vide + longueur min 8), `RegisterCommandHandler`
       (vérifie email existant → `ConflictException`, sinon `CreateAsync` + émission
       immédiate JWT + refresh token + pose du cookie), `RegisterResponse`,
       `RegisterEndpoint` (`POST /auth/register`, 201)
-- [ ] `Features/Auth/Login/` : `LoginCommand`, `LoginCommandValidator`,
+- [x] `Features/Auth/Login/` : `LoginCommand`, `LoginCommandValidator`,
       `LoginCommandHandler` (`UserManager.CheckPasswordAsync`, échec →
       `UnauthorizedException` générique), `LoginResponse`, `LoginEndpoint`
       (`POST /auth/login`, 200)
-- [ ] `Features/Auth/Refresh/` : `RefreshCommandHandler` (lit le cookie, vérifie
+- [x] `Features/Auth/Refresh/` : `RefreshCommandHandler` (lit le cookie, vérifie
       non révoqué/non expiré en base → `UnauthorizedException` sinon, révoque
       l'ancien, crée un nouveau refresh token + nouveau JWT, repose le cookie),
       `RefreshResponse`, `RefreshEndpoint` (`POST /auth/refresh`, 200)
-- [ ] `Features/Auth/Logout/` : `LogoutCommandHandler` (lit le cookie si présent,
+- [x] `Features/Auth/Logout/` : `LogoutCommandHandler` (lit le cookie si présent,
       idempotent si absent, révoque en base, efface le cookie),
       `LogoutEndpoint` (`POST /auth/logout`, 204)
-- [ ] `Features/Auth/Me/` : `GetMeQuery`, `GetMeQueryHandler` (lit
+- [x] `Features/Auth/Me/` : `GetMeQuery`, `GetMeQueryHandler` (lit
       `ClaimsPrincipal`), `GetMeResponse` (id, email), `GetMeEndpoint`
-      (`GET /auth/me`, `[Authorize]`/`RequireAuthorization()`, 200/401)
-- [ ] `Features/Auth/AuthEndpoints.cs` : agrège les 5 `Map(app)`
-- [ ] `Program.cs` : `AddIdentityCore<ApplicationUser>` + `AddSignInManager` +
+      (`GET /auth/me`, `RequireAuthorization()`, 200/401)
+- [x] `Features/Auth/AuthEndpoints.cs` : agrège les 5 `Map(app)`
+- [x] `Program.cs` : `AddIdentityCore<ApplicationUser>` +
       `AddEntityFrameworkStores<WatodooDbContext>` + `AddDefaultTokenProviders`,
       politique de mot de passe MVP, `Configure<JwtOptions>`, `AddAuthentication`
       + `AddJwtBearer`, `AddAuthorization`, `AddCors` (policy nommée,
       `Cors:AllowedOrigins` depuis config), pipeline dans l'ordre documenté,
       `app.MapAuthEndpoints()`
-- [ ] `appsettings.Development.json` : ajouter `Cors:AllowedOrigins` =
+- [x] `appsettings.Development.json` : ajouter `Cors:AllowedOrigins` =
       `["http://localhost:5173"]`
 
 ### Verification Plan
@@ -165,7 +165,37 @@ Status: Not started
   login → 200, `/auth/me` sans header → 401, avec `Authorization: Bearer <token>` → 200
 
 ### Phase Summary
-_(à écrire une fois la phase terminée)_
+`dotnet build` passe. Écarts par rapport au plan initial, découverts à la
+compilation :
+- Pas de `.AddSignInManager()` : aucun handler n'injecte `SignInManager`
+  (Login utilise `UserManager.CheckPasswordAsync` directement), donc l'appel
+  était inutile et de toute façon introuvable sur `IdentityBuilder` sans son
+  namespace — retiré.
+- `FluentValidation.ValidationException` et
+  `Watodoo.Shared.Exceptions.ValidationException` portent le même nom : les
+  handlers qualifient pleinement `Watodoo.Shared.Exceptions.ValidationException`
+  au site du `throw` pour lever l'ambiguïté.
+- `ValidationResult.ToDictionary()` renvoie `IDictionary<string, string[]>`,
+  qui ne se convertit pas implicitement vers le
+  `IReadOnlyDictionary<string, string[]>` attendu par notre exception — cast
+  explicite ajouté (`Dictionary<K,V>` implémente bien les deux interfaces à
+  l'exécution).
+- `AddDefaultTokenProviders`/`AddEntityFrameworkStores` sont des méthodes
+  d'extension dans le namespace `Microsoft.AspNetCore.Identity`, pas couvertes
+  par les usings implicites du SDK Web — `using Microsoft.AspNetCore.Identity;`
+  ajouté à `Program.cs`.
+
+**Vérification manuelle limitée par l'environnement** : pas de Docker
+disponible dans ce sandbox (`docker compose up` échoue), donc impossible de
+lancer Postgres et de tester `curl` de bout en bout ici. À la place : `dotnet
+build` (succès), `dotnet test --filter Architecture` (3/3 verts, la feature
+Auth respecte les règles Vertical Slice existantes), et un `dotnet run` sans
+base de données pour confirmer que tout le graphe DI démarre sans exception
+(Identity, JWT bearer, CORS) — seul Hangfire échoue en boucle à se connecter à
+Postgres, ce qui est attendu et sans rapport avec cette feature. Le test
+manuel `curl` complet (register/login/me) et l'application de la migration
+restent à faire par un contributeur disposant de Docker, ou seront couverts
+par les tests fonctionnels de la Phase 3 (Testcontainers).
 
 ## Phase 3: Tests backend (unitaire, intégration, fonctionnel)
 Status: Not started
