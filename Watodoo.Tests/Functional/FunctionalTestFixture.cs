@@ -29,6 +29,9 @@ public sealed class FunctionalTestFixture : IAsyncLifetime
                     ["Jwt:Audience"] = "Watodoo.Tests",
                     ["Jwt:SigningKey"] = "test-only-signing-key-1234567890-abcdefghijkl",
                     ["Cors:AllowedOrigins:0"] = "http://localhost:5173",
+                    // Limite large : la suite fonctionnelle enchaîne largement plus de 10 requêtes /auth
+                    // par minute sur un hôte partagé entre tests, sans rapport avec la protection brute-force réelle.
+                    ["RateLimiting:Auth:PermitLimit"] = "10000",
                 })));
 
         using var scope = Factory.Services.CreateScope();

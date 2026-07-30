@@ -2,9 +2,9 @@ namespace Watodoo.Features.Auth.Logout;
 
 public static class LogoutEndpoint
 {
-    public static void Map(IEndpointRouteBuilder app)
+    public static void Map(IEndpointRouteBuilder group)
     {
-        app.MapPost("/auth/logout", async (
+        group.MapPost("/logout", async (
             HttpRequest request,
             HttpResponse response,
             LogoutCommandHandler handler,

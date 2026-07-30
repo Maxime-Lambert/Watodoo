@@ -329,15 +329,18 @@ réels — pas seulement `pnpm dev` — comme documenté dans
 `frontend/e2e/journeys/README.md`.
 
 ## Phase 6: Vérification finale & documentation
-Status: Not started
+Status: Complete (tests Docker/Playwright toujours à confirmer hors sandbox)
 
-- [ ] `dotnet test` (suite complète) + `cd frontend && pnpm test` +
-      `pnpm test:e2e` → tous verts
-- [ ] Relire le diff complet pour cohérence Vertical Slice
+- [x] `dotnet test` (suite complète) + `cd frontend && pnpm test` +
+      `pnpm test:e2e` → lancés ; verts pour tout ce qui ne dépend pas de
+      Docker/Playwright (voir limites déjà documentées Phases 3 et 5)
+- [x] Relire le diff complet pour cohérence Vertical Slice
       (agent `architecture-reviewer`)
-- [ ] Relire le diff complet pour sécurité/RGPD (agent `code-reviewer`) —
+- [x] Relire le diff complet pour sécurité/RGPD (agent `code-reviewer`) —
       feature touchant auth et données utilisateur
-- [ ] Cocher "Authentification complète" dans `docs/roadmap.md` (Semaine 1)
+- [ ] Cocher "Authentification complète" dans `docs/roadmap.md` (Semaine 1) —
+      **reporté à la vraie fusion** : la règle du fichier lui-même est
+      "à cocher à chaque PR mergée", et ce n'est pas encore le cas
 - [ ] Déplacer ce fichier vers `plans/done/authentification-complete.md`
       une fois mergé
 
@@ -346,7 +349,82 @@ Status: Not started
   régression sur `/health` ni les tests existants
 
 ### Phase Summary
-_(à écrire une fois la phase terminée)_
+
+**Review architecture (`architecture-reviewer`)** — aucun point bloquant.
+Points importants corrigés dans cette phase :
+- Duplication du bloc de validation (Register/Login) → extrait dans
+  `Shared/Validation/ValidatorExtensions.cs` (`ValidateAndThrowCustomAsync`,
+  nommé différemment de l'extension `ValidateAndThrowAsync` native de
+  FluentValidation pour éviter toute ambiguïté/confusion).
+- Duplication du bloc d'émission de tokens (Register/Login/Refresh) → extrait
+  dans `JwtTokenGenerator.IssueTokenPairAsync(user, db, ct)`. Réduit aussi les
+  occurrences de `user.Email!` de 5 à 2 (centralisées avec garde explicite
+  `?? throw`).
+- Trou dans les tests d'architecture (`Shared` pouvait dépendre de
+  `Features.*` sans détection) → nouveau test
+  `Shared_types_other_than_DbContext_do_not_depend_on_Features` dans
+  `VerticalSliceRulesTests.cs`, whitelistant explicitement `WatodooDbContext`.
+- `GetMeEndpoint` : `Guid.Parse(...!)` → `Guid.TryParse` + `UnauthorizedException`
+  explicite si le claim `sub` est absent/invalide.
+- Point noté mais **non appliqué** : absence de `FluentValidation` sur
+  `RefreshCommand`. Décision : garder un simple guard clause
+  (`string.IsNullOrEmpty` → `UnauthorizedException` direct, sans requête DB)
+  plutôt qu'un validator, pour ne pas transformer un cookie manquant/invalide
+  en 400 (validation) alors que c'est sémantiquement un 401 (non authentifié)
+  — cohérence du contrat HTTP jugée plus importante que l'uniformité stricte
+  du pattern validator.
+- Points mineurs non appliqués (jugés non prioritaires par le reviewer
+  lui-même) : `RegisterResponse`/`LoginResponse`/`RefreshResponse` identiques
+  (idiomatique en Vertical Slice, laissé tel quel) ; `user` dans le store
+  Zustand plutôt que `useMe()` exclusif (compromis pragmatique explicitement
+  validé par le reviewer pour l'auth spécifiquement, à ne pas reproduire
+  ailleurs).
+
+**Review sécurité/RGPD (`code-reviewer`)** — aucun finding bloquant. 4 points
+**Importants** corrigés dans cette phase :
+1. **Refresh token stocké en clair en base** → `JwtTokenGenerator.HashRefreshTokenValue`
+   (SHA-256) : la colonne `RefreshTokens.Token` stocke désormais un hash, la
+   valeur brute ne circule que dans le cookie HttpOnly côté client. Lookup par
+   hash dans Refresh et Logout.
+2. **Aucune protection brute-force sur `/auth/login`** → rate limiting ASP.NET
+   Core natif (`AddRateLimiter`, fenêtre fixe) appliqué à tout le groupe
+   `/auth` via `AuthEndpoints.MapAuthEndpoints` (`app.MapGroup("/auth").RequireRateLimiting("auth")`).
+   Limite configurable (`RateLimiting:Auth:PermitLimit`/`WindowSeconds`,
+   défaut 10/60s dans `appsettings.json`), avec override large
+   (`10000`) dans `FunctionalTestFixture` pour ne pas rendre la suite de
+   tests elle-même flaky (elle enchaîne largement plus de 10 requêtes /auth
+   sur un host de test partagé). Option "lockout Identity" (SignInManager)
+   écartée au profit du rate limiter : plus simple, protège aussi
+   register/refresh, pas de restructuration de `LoginCommandHandler`.
+3. **Race condition TOCTOU sur la rotation du refresh token** →
+   `RefreshCommandHandler` utilise désormais `ExecuteUpdateAsync` avec un
+   `WHERE RevokedAt == null` conditionnel : la révocation de l'ancien token
+   est une unique opération SQL atomique, deux refresh concurrents sur le
+   même token ne peuvent plus produire chacun un nouveau token valide (le
+   second obtient `rowsAffected == 0` → 401).
+4. **Pas de validation de la longueur de la signing key au démarrage** →
+   ajout d'un check explicite (`SigningKey` non vide et ≥ 32 octets pour
+   HS256) qui fait échouer le démarrage immédiatement plutôt qu'à la première
+   génération de token.
+
+Points **Mineurs** relevés et **délibérément non traités dans ce PR**
+(ajoutés à `docs/roadmap.md` comme suivi) :
+- Révocation en cascade sur réutilisation d'un token révoqué — déjà écarté
+  par décision utilisateur explicite (voir en tête de ce plan).
+- Enumeration d'email sur `/auth/register` (409 si email pris) — le reviewer
+  lui-même le juge acceptable en l'état (pattern GitHub/Google), pas
+  d'action.
+- Nettoyage périodique des refresh tokens expirés/révoqués (job Hangfire) —
+  hors scope de cette feature, ajouté en roadmap.
+- RGPD : suppression de compte, durée de conservation — déjà couvert par
+  l'item Semaine 7 existant de `docs/roadmap.md` ("RGPD (mentions légales,
+  cookies, suppression de compte)").
+
+Après ces correctifs : `dotnet build` OK, `dotnet test --filter
+"FullyQualifiedName~Features|FullyQualifiedName~Architecture"` → **16/16**
+verts (15 précédents + le nouveau test d'architecture). Suite complète :
+16 verts / 12 échecs `DockerUnavailableException` (même cause
+environnementale déjà documentée Phase 3, aucune régression).
 
 ## Final Recap
 _(à écrire une fois toutes les phases terminées)_

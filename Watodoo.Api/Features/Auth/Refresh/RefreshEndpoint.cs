@@ -2,9 +2,9 @@ namespace Watodoo.Features.Auth.Refresh;
 
 public static class RefreshEndpoint
 {
-    public static void Map(IEndpointRouteBuilder app)
+    public static void Map(IEndpointRouteBuilder group)
     {
-        app.MapPost("/auth/refresh", async (
+        group.MapPost("/refresh", async (
             HttpRequest request,
             HttpResponse response,
             RefreshCommandHandler handler,

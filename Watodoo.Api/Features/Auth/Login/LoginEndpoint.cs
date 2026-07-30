@@ -2,9 +2,9 @@ namespace Watodoo.Features.Auth.Login;
 
 public static class LoginEndpoint
 {
-    public static void Map(IEndpointRouteBuilder app)
+    public static void Map(IEndpointRouteBuilder group)
     {
-        app.MapPost("/auth/login", async (
+        group.MapPost("/login", async (
             LoginCommand command,
             LoginCommandHandler handler,
             HttpResponse response,

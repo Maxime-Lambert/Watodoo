@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 using Watodoo.Features.Auth.Login;
 using Watodoo.Features.Auth.Logout;
 using Watodoo.Features.Auth.Me;
@@ -10,10 +11,12 @@ public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        RegisterEndpoint.Map(app);
-        LoginEndpoint.Map(app);
-        RefreshEndpoint.Map(app);
-        LogoutEndpoint.Map(app);
-        GetMeEndpoint.Map(app);
+        var group = app.MapGroup("/auth").RequireRateLimiting("auth");
+
+        RegisterEndpoint.Map(group);
+        LoginEndpoint.Map(group);
+        RefreshEndpoint.Map(group);
+        LogoutEndpoint.Map(group);
+        GetMeEndpoint.Map(group);
     }
 }

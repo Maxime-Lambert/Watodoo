@@ -12,33 +12,37 @@ public sealed class RefreshCommandHandler(
 {
     public async Task<AuthResult> Handle(RefreshCommand command, CancellationToken ct)
     {
-        var existing = await db.RefreshTokens.SingleOrDefaultAsync(rt => rt.Token == command.RefreshToken, ct);
+        if (string.IsNullOrEmpty(command.RefreshToken))
+        {
+            throw new UnauthorizedException("Refresh token invalide ou expiré.");
+        }
+
+        var hashedToken = JwtTokenGenerator.HashRefreshTokenValue(command.RefreshToken);
+
+        var existing = await db.RefreshTokens
+            .AsNoTracking()
+            .SingleOrDefaultAsync(rt => rt.Token == hashedToken, ct);
+
         if (existing is null || !existing.IsActive)
         {
             throw new UnauthorizedException("Refresh token invalide ou expiré.");
         }
 
-        var user = await userManager.FindByIdAsync(existing.UserId.ToString());
-        if (user is null)
+        // Révocation atomique conditionnée par l'état encore actif : élimine la
+        // fenêtre de course où deux refresh concurrents avec le même token
+        // produiraient chacun un nouveau token valide.
+        var revokedRows = await db.RefreshTokens
+            .Where(rt => rt.Id == existing.Id && rt.RevokedAt == null && rt.ExpiresAt > DateTimeOffset.UtcNow)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(rt => rt.RevokedAt, DateTimeOffset.UtcNow), ct);
+
+        if (revokedRows == 0)
         {
             throw new UnauthorizedException("Refresh token invalide ou expiré.");
         }
 
-        existing.RevokedAt = DateTimeOffset.UtcNow;
+        var user = await userManager.FindByIdAsync(existing.UserId.ToString())
+            ?? throw new UnauthorizedException("Refresh token invalide ou expiré.");
 
-        var accessToken = tokenGenerator.GenerateAccessToken(user);
-        var newRefreshTokenValue = JwtTokenGenerator.GenerateRefreshTokenValue();
-        var expiresAt = DateTimeOffset.UtcNow.AddDays(RefreshTokenPolicy.LifetimeDays);
-
-        db.RefreshTokens.Add(new RefreshToken
-        {
-            Id = Guid.NewGuid(),
-            Token = newRefreshTokenValue,
-            UserId = user.Id,
-            ExpiresAt = expiresAt,
-        });
-        await db.SaveChangesAsync(ct);
-
-        return new AuthResult(user.Id, user.Email!, accessToken, newRefreshTokenValue, expiresAt);
+        return await tokenGenerator.IssueTokenPairAsync(user, db, ct);
     }
 }

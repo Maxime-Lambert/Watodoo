@@ -12,13 +12,10 @@ public sealed class LogoutCommandHandler(WatodooDbContext db)
             return;
         }
 
-        var existing = await db.RefreshTokens.SingleOrDefaultAsync(rt => rt.Token == command.RefreshToken, ct);
-        if (existing is null || existing.RevokedAt is not null)
-        {
-            return;
-        }
+        var hashedToken = JwtTokenGenerator.HashRefreshTokenValue(command.RefreshToken);
 
-        existing.RevokedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
+        await db.RefreshTokens
+            .Where(rt => rt.Token == hashedToken && rt.RevokedAt == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(rt => rt.RevokedAt, DateTimeOffset.UtcNow), ct);
     }
 }

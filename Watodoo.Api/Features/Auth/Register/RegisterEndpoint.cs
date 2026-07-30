@@ -2,9 +2,9 @@ namespace Watodoo.Features.Auth.Register;
 
 public static class RegisterEndpoint
 {
-    public static void Map(IEndpointRouteBuilder app)
+    public static void Map(IEndpointRouteBuilder group)
     {
-        app.MapPost("/auth/register", async (
+        group.MapPost("/register", async (
             RegisterCommand command,
             RegisterCommandHandler handler,
             HttpResponse response,
