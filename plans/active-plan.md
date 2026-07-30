@@ -250,19 +250,20 @@ Status: Complete (à reconfirmer avec Docker — voir Phase Summary)
   `dotnet user-secrets` (absent en CI).
 
 ## Phase 4: Frontend — plomberie (store, client HTTP, hooks)
-Status: Not started
+Status: Complete
 
-- [ ] `frontend/src/features/auth/store.ts` : Zustand `{ accessToken, user,
+- [x] `frontend/src/features/auth/store.ts` : Zustand `{ accessToken, user,
       setAuth, clear }`, **pas de `persist`** (l'access token ne doit pas
       survivre en storage, uniquement en mémoire)
-- [ ] `frontend/src/features/auth/api.ts` : wrapper fetch `credentials:'include'`,
+- [x] `frontend/src/features/auth/api.ts` : wrapper fetch `credentials:'include'`,
       fonctions `register`, `login`, `refresh`, `logout`, `getMe`
-- [ ] `frontend/src/features/auth/hooks.ts` : `useRegister`, `useLogin`,
+- [x] `frontend/src/features/auth/hooks.ts` : `useRegister`, `useLogin`,
       `useLogout` (mutations React Query, mettent à jour le store au succès),
       `useMe` (query)
-- [ ] Réhydratation au chargement de l'app : appel silencieux à `refresh` dans
-      `main.tsx` ou un composant racine, avant le premier rendu authentifié
-- [ ] `frontend/src/features/auth/store.test.ts` (Vitest) : setAuth/clear,
+- [x] Réhydratation au chargement de l'app : `useAuthBootstrap.ts` (hook
+      dédié, appelle `refresh` une fois au montage) — câblage effectif dans
+      `App.tsx` reporté à la Phase 5 avec les pages
+- [x] `frontend/src/features/auth/store.test.ts` (Vitest) : setAuth/clear,
       dérivé `isAuthenticated`
 
 ### Verification Plan
@@ -270,7 +271,17 @@ Status: Not started
 - `cd frontend && pnpm build` → succès (typecheck inclus)
 
 ### Phase Summary
-_(à écrire une fois la phase terminée)_
+`pnpm test` : 4/4 verts (2 fichiers). `pnpm build` (tsc -b + vite build) :
+succès. `pnpm lint` : les seules erreurs restantes sont **préexistantes**
+(`frontend/eslint.config.ts` — erreur de parsing projectService non liée à
+cette feature — et `frontend/src/main.tsx` ligne 11, `!` non-null déjà présent
+dans le scaffold initial) ; aucun fichier créé dans cette phase ne déclenche
+d'erreur lint. `hooks.ts` évite un `accessToken!` non-null grâce à
+`accessToken ?? ''` dans `queryFn`, sûr car `enabled: accessToken !== null`
+empêche React Query d'appeler `queryFn` avant qu'un token existe.
+`useAuthBootstrap` reste un hook autonome non encore branché dans l'arbre React
+— le câblage dans `App.tsx` est fait en Phase 5 pour éviter de modifier
+`App.tsx` deux fois (plomberie puis pages).
 
 ## Phase 5: Frontend — pages Login/Register & tests interface/QA
 Status: Not started
