@@ -75,27 +75,27 @@ done, set its status to `Complete` and write its **Phase Summary**; run the
 phase's **Verification Plan** and record the result before moving on.
 
 ## Phase 1: Modèle de données & configuration backend
-Status: Not started
+Status: Complete
 
-- [ ] Ajouter les packages : `Microsoft.AspNetCore.Identity.EntityFrameworkCore`,
+- [x] Ajouter les packages : `Microsoft.AspNetCore.Identity.EntityFrameworkCore`,
       `Microsoft.AspNetCore.Authentication.JwtBearer`,
       `System.IdentityModel.Tokens.Jwt` — via `dotnet add Watodoo.Api package <nom>`
       pour résoudre la dernière version compatible .NET 10, puis migrer la
       version résolue vers `Directory.Packages.props` (central package management)
-- [ ] Créer `Watodoo.Api/Features/Auth/ApplicationUser.cs` (`: IdentityUser<Guid>`)
-- [ ] Créer `Watodoo.Api/Features/Auth/RefreshToken.cs` (`Id`, `Token`, `UserId`,
+- [x] Créer `Watodoo.Api/Features/Auth/ApplicationUser.cs` (`: IdentityUser<Guid>`)
+- [x] Créer `Watodoo.Api/Features/Auth/RefreshToken.cs` (`Id`, `Token`, `UserId`,
       `ExpiresAt`, `RevokedAt`)
-- [ ] Modifier `Watodoo.Api/Shared/Data/WatodooDbContext.cs` :
+- [x] Modifier `Watodoo.Api/Shared/Data/WatodooDbContext.cs` :
       `IdentityUserContext<ApplicationUser, Guid>`, `DbSet<RefreshToken> RefreshTokens`,
       configuration Fluent API (index unique sur `Token`, FK vers `ApplicationUser`)
-- [ ] Créer `Watodoo.Api/Configuration/JwtOptions.cs` (`Issuer`, `Audience`, `SigningKey`)
-- [ ] Créer `Watodoo.Api/Shared/Exceptions/UnauthorizedException.cs`
-- [ ] Ajouter le cas `UnauthorizedException` (401) dans
+- [x] Créer `Watodoo.Api/Configuration/JwtOptions.cs` (`Issuer`, `Audience`, `SigningKey`)
+- [x] Créer `Watodoo.Api/Shared/Exceptions/UnauthorizedException.cs`
+- [x] Ajouter le cas `UnauthorizedException` (401) dans
       `Watodoo.Api/Middleware/ExceptionMiddleware.cs`
-- [ ] `dotnet user-secrets set "Jwt:SigningKey" "<valeur générée localement>"`
-      dans `Watodoo.Api/` + documenter `Jwt:Issuer`/`Jwt:Audience` dans
-      `appsettings.Development.json` (non-secrets, uniquement Issuer/Audience)
-- [ ] Générer la migration :
+- [x] `dotnet user-secrets set "Jwt:SigningKey" "<valeur générée localement>"`
+      dans `Watodoo.Api/` + `Jwt:Issuer`/`Jwt:Audience` dans `appsettings.json`
+      (non-secrets, communs à tous les environnements)
+- [x] Générer la migration :
       `dotnet ef migrations add AddAuthIdentity --project Watodoo.Api --startup-project Watodoo.Api`
 
 ### Verification Plan
@@ -107,7 +107,22 @@ Status: Not started
   (avec `docker compose up -d postgres` lancé) → applique sans erreur
 
 ### Phase Summary
-_(à écrire une fois la phase terminée)_
+Packages ajoutés via `dotnet add package` (CPM géré automatiquement dans
+`Directory.Packages.props`) ; `Microsoft.EntityFrameworkCore`/`.Design` bumpés
+de 10.0.9 à 10.0.10 pour lever un conflit de downgrade NU1605 avec
+`Identity.EntityFrameworkCore`. `dotnet-ef` n'était pas dans
+`.config/dotnet-tools.json` (seul `dotnet-stryker` y était) — ajouté via
+`dotnet tool install dotnet-ef` pour que la commande documentée dans
+`CLAUDE.md` fonctionne pour tout contributeur après `dotnet tool restore`.
+`WatodooDbContext` hérite maintenant de `IdentityUserContext<ApplicationUser, Guid>`
+(pas de tables de rôles). Migration générée et son contenu inspecté :
+`AspNetUsers` (sans `AspNetRoles`), `RefreshTokens` avec index unique sur
+`Token` et FK cascade vers `AspNetUsers`. Migration **pas encore appliquée**
+à une base réelle (nécessite `docker compose up -d postgres`) — sera vérifiée
+en Phase 2 lors des tests manuels, et par les tests d'intégration/fonctionnels
+en Phase 3 qui appliquent le schéma via Testcontainers.
+`Jwt:SigningKey` posé en local via `dotnet user-secrets` (jamais commité) ;
+`Jwt:Issuer`/`Jwt:Audience` dans `appsettings.json` (non-secrets).
 
 ## Phase 2: Use cases backend (Register, Login, Refresh, Logout, Me)
 Status: Not started
