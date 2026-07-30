@@ -17,6 +17,10 @@ public sealed class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionM
         {
             await WriteProblemAsync(context, HttpStatusCode.NotFound, ex.Message);
         }
+        catch (UnauthorizedException ex)
+        {
+            await WriteProblemAsync(context, HttpStatusCode.Unauthorized, ex.Message);
+        }
         catch (ConflictException ex)
         {
             await WriteProblemAsync(context, HttpStatusCode.Conflict, ex.Message);

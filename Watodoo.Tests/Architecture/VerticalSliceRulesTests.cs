@@ -59,6 +59,20 @@ public class VerticalSliceRulesTests
     }
 
     [Fact]
+    public void Shared_types_other_than_DbContext_do_not_depend_on_Features()
+    {
+        var result = Types.InAssembly(ApiAssembly)
+            .That().ResideInNamespaceStartingWith("Watodoo.Shared")
+            .And().DoNotHaveNameEndingWith("DbContext")
+            .Should().NotHaveDependencyOnAny("Watodoo.Features")
+            .GetResult();
+
+        Assert.True(result.IsSuccessful,
+            "Seul le DbContext peut référencer Watodoo.Features (pour enregistrer les entités EF Core). " +
+            $"Types en violation : {string.Join(", ", result.FailingTypeNames ?? [])}");
+    }
+
+    [Fact]
     public void Handlers_do_not_depend_on_other_handlers()
     {
         var handlers = Types.InAssembly(ApiAssembly)
