@@ -198,22 +198,22 @@ restent à faire par un contributeur disposant de Docker, ou seront couverts
 par les tests fonctionnels de la Phase 3 (Testcontainers).
 
 ## Phase 3: Tests backend (unitaire, intégration, fonctionnel)
-Status: Not started
+Status: Complete (à reconfirmer avec Docker — voir Phase Summary)
 
-- [ ] `Watodoo.Tests/Features/Auth/Register/RegisterCommandValidatorTests.cs`
+- [x] `Watodoo.Tests/Features/Auth/Register/RegisterCommandValidatorTests.cs`
       (email invalide, mot de passe vide/trop court)
-- [ ] `Watodoo.Tests/Features/Auth/Login/LoginCommandValidatorTests.cs`
-- [ ] `Watodoo.Tests/Integration/Auth/RefreshTokenRotationTests.cs`
+- [x] `Watodoo.Tests/Features/Auth/Login/LoginCommandValidatorTests.cs`
+- [x] `Watodoo.Tests/Integration/Auth/RefreshTokenRotationTests.cs`
       (Testcontainers.PostgreSql direct sur `WatodooDbContext` : rotation
       révoque l'ancien + crée le nouveau, contrainte unique sur `Token` respectée)
-- [ ] Étendre `Watodoo.Tests/Functional/` avec `Watodoo.Tests/Functional/Auth/AuthEndpointsTests.cs`
+- [x] Étendre `Watodoo.Tests/Functional/` avec `Watodoo.Tests/Functional/Auth/AuthEndpointsTests.cs`
       couvrant : register → 201 + cookie ; email déjà pris → 409 ; login valide
       → 200 + cookie ; login invalide → 401 générique ; `/auth/me` sans token
       → 401 ; `/auth/me` avec token → 200 ; refresh fait tourner le cookie et
       l'ancien refresh token devient inutilisable (deuxième refresh avec
       l'ancien → 401) ; logout révoque puis refresh suivant → 401 ; logout
       sans cookie → 204 sans exception
-- [ ] Vérifier que `Watodoo.Tests/Architecture/VerticalSliceRulesTests.cs`
+- [x] Vérifier que `Watodoo.Tests/Architecture/VerticalSliceRulesTests.cs`
       passe sans modification sur `Features.Auth`
 
 ### Verification Plan
@@ -222,7 +222,32 @@ Status: Not started
   `VerticalSliceRulesTests`
 
 ### Phase Summary
-_(à écrire une fois la phase terminée)_
+**⚠️ Pas de Docker dans ce sandbox** — `docker compose` échoue
+("could not be found in this WSL 2 distro"). Impact réel sur la vérification :
+- `dotnet test --filter "FullyQualifiedName~Features|FullyQualifiedName~Architecture"`
+  → **15/15 verts** (validators Register/Login + les 3 tests d'architecture
+  existants, qui continuent de passer sans modification sur `Features.Auth`).
+- `dotnet test` (suite complète, 27 tests) → 15 verts / 12 en échec, et les 12
+  échecs sont tous `DotNet.Testcontainers.Builders.DockerUnavailableException`
+  — y compris `HealthEndpointTests`, qui existait déjà avant cette feature et
+  n'a pas été touché. Ça confirme que l'échec est bien environnemental (pas de
+  Docker ici) et non un bug introduit par le code de cette phase : tous les
+  tests Testcontainers échouent de la même façon, anciens comme nouveaux.
+- **`RefreshTokenRotationTests` et `AuthEndpointsTests` n'ont donc pas pu être
+  exécutés avec de vraies assertions vérifiées dans ce sandbox.** Ils
+  compilent et échouent au même stade (connexion Docker) que le test existant
+  — mais leur *logique* (rotation, 401 sur réutilisation, cookie, etc.) reste
+  à confirmer par un lancement avec Docker disponible (poste local ou CI
+  GitHub Actions, qui a Docker).
+- Prochaine étape recommandée avant merge : lancer `dotnet test` en local
+  (avec Docker) ou attendre le résultat de la CI sur la PR pour confirmer que
+  ces tests passent réellement, pas seulement qu'ils compilent.
+- `FunctionalTestFixture` étendu : applique désormais les migrations
+  (`db.Database.MigrateAsync()`) au démarrage de la fixture — nécessaire car
+  `Program.cs` n'auto-migre jamais (règle explicite de
+  `docs/decisions/architecture.md`), et injecte une config `Jwt:*` et
+  `Cors:AllowedOrigins` en mémoire pour ne jamais dépendre de
+  `dotnet user-secrets` (absent en CI).
 
 ## Phase 4: Frontend — plomberie (store, client HTTP, hooks)
 Status: Not started
