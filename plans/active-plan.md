@@ -198,7 +198,7 @@ restent à faire par un contributeur disposant de Docker, ou seront couverts
 par les tests fonctionnels de la Phase 3 (Testcontainers).
 
 ## Phase 3: Tests backend (unitaire, intégration, fonctionnel)
-Status: Complete (à reconfirmer avec Docker — voir Phase Summary)
+Status: Complete — confirmé avec Docker (28/28, voir Addendum en fin de fichier)
 
 - [x] `Watodoo.Tests/Features/Auth/Register/RegisterCommandValidatorTests.cs`
       (email invalide, mot de passe vide/trop court)
@@ -284,7 +284,7 @@ empêche React Query d'appeler `queryFn` avant qu'un token existe.
 `App.tsx` deux fois (plomberie puis pages).
 
 ## Phase 5: Frontend — pages Login/Register & tests interface/QA
-Status: Complete (Playwright non exécutable dans ce sandbox — voir Phase Summary)
+Status: Complete — confirmé avec Playwright (4 component + 1 journey, voir Addendum en fin de fichier)
 
 - [x] `frontend/src/features/auth/RegisterForm.tsx` (email, password, submit,
       erreurs de validation affichées, bouton désactivé pendant la requête)
@@ -425,6 +425,58 @@ Après ces correctifs : `dotnet build` OK, `dotnet test --filter
 verts (15 précédents + le nouveau test d'architecture). Suite complète :
 16 verts / 12 échecs `DockerUnavailableException` (même cause
 environnementale déjà documentée Phase 3, aucune régression).
+
+## Addendum — Docker et Playwright confirmés fonctionnels (session suivante)
+
+Docker est devenu disponible dans l'environnement. Deux bugs réels ont été
+trouvés et corrigés en relançant la suite complète avec Docker actif :
+
+1. **Toutes les lectures de config faites au niveau du builder (avant
+   `builder.Build()`) dans `Program.cs` ignoraient les surcharges de
+   `WebApplicationFactory`** (`Jwt:SigningKey`, `Cors:AllowedOrigins`,
+   `RateLimiting:Auth:PermitLimit`/`WindowSeconds`). Cause : sous
+   `WebApplicationFactory` avec le hosting minimal (top-level `Program.cs`),
+   le callback `ConfigureAppConfiguration` passé par les tests ne s'applique
+   qu'**après** l'exécution synchrone du fichier — confirmé empiriquement en
+   traçant l'ordre d'exécution. Résultat concret : la suite de tests
+   fonctionnels se faisait rate-limiter elle-même (429) car
+   `RateLimiting:Auth:PermitLimit=10000` de `FunctionalTestFixture` n'était
+   jamais vu, la vraie valeur restant celle d'`appsettings.json` (10).
+   **Fix** : déplacer ces lectures de `builder.Configuration` à l'intérieur
+   des délégués différés (`AddJwtBearer`, `AddCors`, `AddRateLimiter`), qui ne
+   s'exécutent qu'à la résolution DI (donc après coup, quand la config de
+   test est déjà en place). Aucun changement de comportement pour l'app
+   réelle (hors tests), ces délégués s'exécutent de toute façon avant la
+   première requête.
+2. **`AuthEndpointsTests` : `WebApplicationFactory.CreateClient()` active par
+   défaut un `CookieContainer` (`HandleCookies = true`)**, qui interceptait et
+   remplaçait silencieusement les en-têtes `Cookie` posés manuellement dans
+   les tests par le dernier `Set-Cookie` reçu. Concrètement, le test de
+   rotation envoyait censément l'ancien cookie révoqué mais le client
+   envoyait en réalité le nouveau (toujours actif) → faux positif côté test
+   (le serveur se comportait correctement, c'est le client de test qui
+   mentait sur ce qu'il envoyait). **Fix** : `AuthEndpointsTests` crée
+   désormais ses clients via
+   `fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false })`.
+3. **Bug applicatif réel trouvé par le test de parcours QA
+   (`auth.spec.ts`)** : après un logout depuis le formulaire Register (mode
+   `'register'` jamais réinitialisé), l'utilisateur revoyait le formulaire
+   d'inscription au lieu du formulaire de connexion. Corrigé dans `App.tsx`
+   par un `useEffect` qui réinitialise `mode` à `'login'` dès que
+   `isAuthenticated` repasse à `false`.
+
+Résultat final : **`dotnet test` 28/28 verts** (stable sur 2 exécutions
+consécutives), migration appliquée avec succès à la base réelle
+(`dotnet ef database update`), **Playwright 4/4 (component) + 1/1
+(journeys) verts** après installation manuelle des dépendances système
+manquantes (voir ci-dessous — `pnpm exec playwright install-deps` échoue
+sans TTY interactif pour `sudo` ; contournement : téléchargement des `.deb`
+via `apt-get download` (pas besoin de root) et extraction dans
+`~/.local/lib/playwright-system-deps`, activé via `LD_LIBRARY_PATH`). Ce
+contournement est documenté dans `README.md` avec la vraie commande
+(`playwright install-deps`) à lancer manuellement une fois sur toute machine
+disposant d'un accès `sudo` interactif — le CI (`ci.yml`) n'a pas ce
+problème, il tourne déjà en root.
 
 ## Final Recap
 _(à écrire une fois toutes les phases terminées)_

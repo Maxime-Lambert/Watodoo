@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Watodoo.Features.Auth.Login;
 using Watodoo.Features.Auth.Me;
 using Watodoo.Features.Auth.Register;
@@ -10,6 +11,12 @@ namespace Watodoo.Tests.Functional.Auth;
 public sealed class AuthEndpointsTests(FunctionalTestFixture fixture)
 {
     private static string UniqueEmail() => $"{Guid.NewGuid():N}@example.com";
+
+    // HandleCookies=false : ces tests posent des cookies "Cookie" explicites sur chaque requête
+    // (y compris volontairement des cookies périmés/révoqués) — le CookieContainer par défaut de
+    // WebApplicationFactory intercepterait et remplacerait ces valeurs par le dernier Set-Cookie reçu.
+    private HttpClient CreateClient() =>
+        fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
 
     private static string? ExtractCookieHeader(HttpResponseMessage response)
     {
@@ -24,7 +31,7 @@ public sealed class AuthEndpointsTests(FunctionalTestFixture fixture)
     [Fact]
     public async Task Register_creates_account_and_sets_refresh_cookie()
     {
-        var client = fixture.Factory.CreateClient();
+        var client = CreateClient();
 
         var response = await client.PostAsJsonAsync("/auth/register", new RegisterCommand(UniqueEmail(), "Passw0rd1"));
 
@@ -37,7 +44,7 @@ public sealed class AuthEndpointsTests(FunctionalTestFixture fixture)
     [Fact]
     public async Task Register_with_existing_email_returns_conflict()
     {
-        var client = fixture.Factory.CreateClient();
+        var client = CreateClient();
         var email = UniqueEmail();
 
         await client.PostAsJsonAsync("/auth/register", new RegisterCommand(email, "Passw0rd1"));
@@ -49,7 +56,7 @@ public sealed class AuthEndpointsTests(FunctionalTestFixture fixture)
     [Fact]
     public async Task Login_with_valid_credentials_returns_ok_and_sets_refresh_cookie()
     {
-        var client = fixture.Factory.CreateClient();
+        var client = CreateClient();
         var email = UniqueEmail();
         await client.PostAsJsonAsync("/auth/register", new RegisterCommand(email, "Passw0rd1"));
 
@@ -62,7 +69,7 @@ public sealed class AuthEndpointsTests(FunctionalTestFixture fixture)
     [Fact]
     public async Task Login_with_invalid_password_returns_unauthorized()
     {
-        var client = fixture.Factory.CreateClient();
+        var client = CreateClient();
         var email = UniqueEmail();
         await client.PostAsJsonAsync("/auth/register", new RegisterCommand(email, "Passw0rd1"));
 
@@ -74,7 +81,7 @@ public sealed class AuthEndpointsTests(FunctionalTestFixture fixture)
     [Fact]
     public async Task Me_without_token_returns_unauthorized()
     {
-        var client = fixture.Factory.CreateClient();
+        var client = CreateClient();
 
         var response = await client.GetAsync("/auth/me");
 
@@ -84,7 +91,7 @@ public sealed class AuthEndpointsTests(FunctionalTestFixture fixture)
     [Fact]
     public async Task Me_with_valid_token_returns_current_user()
     {
-        var client = fixture.Factory.CreateClient();
+        var client = CreateClient();
         var email = UniqueEmail();
         var registerResponse = await client.PostAsJsonAsync("/auth/register", new RegisterCommand(email, "Passw0rd1"));
         var registered = await registerResponse.Content.ReadFromJsonAsync<RegisterResponse>();
@@ -101,7 +108,7 @@ public sealed class AuthEndpointsTests(FunctionalTestFixture fixture)
     [Fact]
     public async Task Refresh_rotates_the_cookie_and_invalidates_the_previous_token()
     {
-        var client = fixture.Factory.CreateClient();
+        var client = CreateClient();
         var email = UniqueEmail();
         var registerResponse = await client.PostAsJsonAsync("/auth/register", new RegisterCommand(email, "Passw0rd1"));
         var firstCookie = ExtractCookieHeader(registerResponse)!;
@@ -130,7 +137,7 @@ public sealed class AuthEndpointsTests(FunctionalTestFixture fixture)
     [Fact]
     public async Task Logout_revokes_the_refresh_token_then_refresh_fails()
     {
-        var client = fixture.Factory.CreateClient();
+        var client = CreateClient();
         var email = UniqueEmail();
         var registerResponse = await client.PostAsJsonAsync("/auth/register", new RegisterCommand(email, "Passw0rd1"));
         var cookie = ExtractCookieHeader(registerResponse)!;
@@ -151,7 +158,7 @@ public sealed class AuthEndpointsTests(FunctionalTestFixture fixture)
     [Fact]
     public async Task Logout_without_cookie_is_idempotent()
     {
-        var client = fixture.Factory.CreateClient();
+        var client = CreateClient();
 
         var response = await client.PostAsync("/auth/logout", null);
 

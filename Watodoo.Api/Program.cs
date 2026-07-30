@@ -46,18 +46,21 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 
-var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()
-    ?? throw new InvalidOperationException("Configuration 'Jwt' manquante (Issuer/Audience/SigningKey).");
-
-if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey) || Encoding.UTF8.GetByteCount(jwtOptions.SigningKey) < 32)
-{
-    throw new InvalidOperationException(
-        "Jwt:SigningKey doit être configurée (dotnet user-secrets en local) et faire au moins 32 octets (256 bits) pour HS256.");
-}
-
+// Lecture différée (pas de variable capturée au niveau du builder) : sous WebApplicationFactory,
+// les surcharges de config des tests ne sont appliquées qu'après l'exécution synchrone de ce
+// fichier, donc toute lecture eager de builder.Configuration ici ignorerait ces surcharges.
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>()
+            ?? throw new InvalidOperationException("Configuration 'Jwt' manquante (Issuer/Audience/SigningKey).");
+
+        if (string.IsNullOrWhiteSpace(jwtOptions.SigningKey) || Encoding.UTF8.GetByteCount(jwtOptions.SigningKey) < 32)
+        {
+            throw new InvalidOperationException(
+                "Jwt:SigningKey doit être configurée (dotnet user-secrets en local) et faire au moins 32 octets (256 bits) pour HS256.");
+        }
+
         options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -70,10 +73,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
-
 builder.Services.AddCors(options =>
 {
+    var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
     options.AddPolicy("Frontend", policy => policy
         .WithOrigins(allowedOrigins)
         .AllowAnyHeader()
@@ -81,16 +84,13 @@ builder.Services.AddCors(options =>
         .AllowCredentials());
 });
 
-var authRateLimitPermits = builder.Configuration.GetValue("RateLimiting:Auth:PermitLimit", 10);
-var authRateLimitWindowSeconds = builder.Configuration.GetValue("RateLimiting:Auth:WindowSeconds", 60);
-
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.AddFixedWindowLimiter("auth", limiterOptions =>
     {
-        limiterOptions.PermitLimit = authRateLimitPermits;
-        limiterOptions.Window = TimeSpan.FromSeconds(authRateLimitWindowSeconds);
+        limiterOptions.PermitLimit = builder.Configuration.GetValue("RateLimiting:Auth:PermitLimit", 10);
+        limiterOptions.Window = TimeSpan.FromSeconds(builder.Configuration.GetValue("RateLimiting:Auth:WindowSeconds", 60));
         limiterOptions.QueueLimit = 0;
     });
 });

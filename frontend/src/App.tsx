@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { LoginForm } from './features/auth/LoginForm'
 import { RegisterForm } from './features/auth/RegisterForm'
@@ -30,6 +30,12 @@ function App() {
   const isReady = useAuthBootstrap()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const [mode, setMode] = useState<'login' | 'register'>('login')
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMode('login')
+    }
+  }, [isAuthenticated])
 
   return (
     <>

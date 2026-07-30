@@ -31,6 +31,19 @@ avant chaque push :
 git config core.hooksPath .githooks
 ```
 
+Playwright (tests interface + QA e2e) a besoin de bibliothèques système pour
+son navigateur headless. Une fois après le clone :
+
+```bash
+cd frontend && pnpm exec playwright install-deps chromium
+```
+
+Cette commande demande un mot de passe `sudo` (installation de paquets système)
+— à lancer manuellement dans un vrai terminal, elle ne peut pas être exécutée
+par un agent sans accès interactif. En CI (`.github/workflows/ci.yml`), c'est
+déjà automatisé via `pnpm exec playwright install --with-deps chromium`, aucune
+action requise.
+
 ## Licence
 
 MIT — voir [LICENSE](LICENSE)
