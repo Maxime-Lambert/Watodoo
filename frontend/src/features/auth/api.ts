@@ -48,16 +48,20 @@ export async function login(email: string, password: string): Promise<AuthRespon
 }
 
 export async function refresh(): Promise<AuthResponse | null> {
-  const response = await fetch(`${API_URL}/auth/refresh`, {
-    method: 'POST',
-    credentials: 'include',
-  })
+  try {
+    const response = await fetch(`${API_URL}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    })
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return null
+    }
+
+    return (await response.json()) as AuthResponse
+  } catch {
     return null
   }
-
-  return (await response.json()) as AuthResponse
 }
 
 export async function logout(): Promise<void> {

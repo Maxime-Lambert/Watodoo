@@ -284,18 +284,22 @@ empêche React Query d'appeler `queryFn` avant qu'un token existe.
 `App.tsx` deux fois (plomberie puis pages).
 
 ## Phase 5: Frontend — pages Login/Register & tests interface/QA
-Status: Not started
+Status: Complete (Playwright non exécutable dans ce sandbox — voir Phase Summary)
 
-- [ ] `frontend/src/features/auth/RegisterForm.tsx` (email, password, submit,
+- [x] `frontend/src/features/auth/RegisterForm.tsx` (email, password, submit,
       erreurs de validation affichées, bouton désactivé pendant la requête)
-- [ ] `frontend/src/features/auth/LoginForm.tsx` (idem)
-- [ ] Câblage minimal dans `App.tsx` ou un routeur simple pour accéder aux
-      deux pages (pas de librairie de routing si aucune n'est déjà choisie —
-      toggle d'état local suffit pour ce PR)
-- [ ] `frontend/e2e/component/auth-forms.spec.ts` (Playwright, réseau mocké) :
-      validation email/password, état disabled pendant soumission
-- [ ] `frontend/e2e/journeys/auth.spec.ts` (Playwright, app réelle) : register
-      → état connecté visible → logout → login à nouveau
+- [x] `frontend/src/features/auth/LoginForm.tsx` (idem)
+- [x] Câblage dans `App.tsx` : toggle d'état local login/register (pas de
+      librairie de routing), branchement de `useAuthBootstrap` (Phase 4) et
+      vue "connecté" avec bouton logout
+- [x] `frontend/e2e/component/auth-forms.spec.ts` (Playwright, réseau mocké) :
+      message d'erreur générique sur identifiants invalides, bouton disabled
+      pendant la requête, bascule login/register
+- [x] `frontend/e2e/journeys/auth.spec.ts` (Playwright, app réelle) : register
+      → état connecté visible → logout → login à nouveau. Remplace le
+      placeholder de `frontend/e2e/journeys/README.md` qui annonçait
+      explicitement l'absence de test "en attendant la première feature avec
+      un vrai parcours" — désormais à jour.
 
 ### Verification Plan
 - `cd frontend && pnpm test:e2e` → tous verts
@@ -303,7 +307,26 @@ Status: Not started
   backend + frontend lancés) → tous verts
 
 ### Phase Summary
-_(à écrire une fois la phase terminée)_
+`pnpm test` (Vitest) : 4/4 verts, y compris `App.test.tsx` mis à jour pour
+englober `App` dans un `QueryClientProvider` — nécessaire car `App` utilise
+désormais `useMutation`/`useQuery` (React Query) via les hooks auth. `pnpm
+build` et `pnpm lint` : succès, seules erreurs restantes préexistantes
+(`eslint.config.ts`, `main.tsx`), aucune régression sur le code de cette phase.
+
+**⚠️ Playwright non exécutable dans ce sandbox** : les navigateurs headless
+manquent des bibliothèques système (`libnspr4.so` absente) et
+`playwright install-deps` échoue (`sudo` demande un terminal interactif,
+indisponible ici). **Les 4 tests échouent tous de la même façon** — y
+compris `e2e/component/app-shell.spec.ts`, préexistant et non modifié par
+cette feature — ce qui confirme que c'est un manque d'environnement, pas un
+bug introduit ici. `auth-forms.spec.ts` et `auth.spec.ts` compilent (types
+Playwright corrects) mais **n'ont pas pu être exécutés avec de vraies
+assertions vérifiées**. À lancer sur un poste avec les dépendances système
+Playwright installées, ou en CI (le workflow `ci.yml` installe déjà
+`--with-deps chromium`).
+`auth.spec.ts` (journeys) nécessite en plus le backend + Postgres + Redis
+réels — pas seulement `pnpm dev` — comme documenté dans
+`frontend/e2e/journeys/README.md`.
 
 ## Phase 6: Vérification finale & documentation
 Status: Not started
