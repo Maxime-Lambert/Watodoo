@@ -6,11 +6,6 @@ export interface AuthResponse {
   accessToken: string
 }
 
-export interface MeResponse {
-  userId: string
-  email: string
-}
-
 interface ProblemDetails {
   title?: string
   detail?: string
@@ -69,13 +64,4 @@ export async function logout(): Promise<void> {
     method: 'POST',
     credentials: 'include',
   })
-}
-
-export async function getMe(accessToken: string): Promise<MeResponse> {
-  const response = await fetch(`${API_URL}/auth/me`, {
-    credentials: 'include',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  })
-
-  return parseJsonOrThrow<MeResponse>(response)
 }

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import * as api from './api'
 import { useAuthStore } from './store'
 
@@ -39,15 +39,5 @@ export function useLogout() {
       clear()
       queryClient.clear()
     },
-  })
-}
-
-export function useMe() {
-  const accessToken = useAuthStore((s) => s.accessToken)
-
-  return useQuery({
-    queryKey: ['auth', 'me'],
-    queryFn: () => api.getMe(accessToken ?? ''),
-    enabled: accessToken !== null,
   })
 }

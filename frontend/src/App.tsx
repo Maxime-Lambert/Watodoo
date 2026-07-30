@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Helmet } from 'react-helmet-async'
 import { LoginForm } from './features/auth/LoginForm'
 import { RegisterForm } from './features/auth/RegisterForm'
@@ -6,7 +6,7 @@ import { useLogout } from './features/auth/hooks'
 import { useAuthStore } from './features/auth/store'
 import { useAuthBootstrap } from './features/auth/useAuthBootstrap'
 
-function AuthenticatedView() {
+function AuthenticatedView({ onLoggedOut }: { onLoggedOut: () => void }) {
   const user = useAuthStore((s) => s.user)
   const logoutMutation = useLogout()
 
@@ -16,6 +16,7 @@ function AuthenticatedView() {
       <button
         type="button"
         onClick={() => {
+          onLoggedOut()
           logoutMutation.mutate()
         }}
         className="rounded bg-slate-900 px-3 py-2 text-white dark:bg-white dark:text-slate-900"
@@ -31,12 +32,6 @@ function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const [mode, setMode] = useState<'login' | 'register'>('login')
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setMode('login')
-    }
-  }, [isAuthenticated])
-
   return (
     <>
       <Helmet>
@@ -49,7 +44,11 @@ function App() {
         </div>
         {isReady &&
           (isAuthenticated ? (
-            <AuthenticatedView />
+            <AuthenticatedView
+              onLoggedOut={() => {
+                setMode('login')
+              }}
+            />
           ) : mode === 'login' ? (
             <LoginForm
               onSwitchToRegister={() => {
