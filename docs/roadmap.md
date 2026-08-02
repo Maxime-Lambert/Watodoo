@@ -7,6 +7,10 @@ Source de vérité de l'avancement produit, découpée en semaines indicatives.
 - [x] Initialisation projet .NET 10 + React (Claude Code)
 - [x] Docker Compose local fonctionnel (PostgreSQL + Redis)
 - [x] Authentification complète (inscription, connexion, JWT + refresh token rotatif)
+- [x] Charte graphique définie (`docs/decisions/design.md`) — couleurs, typo, formes, icônes, ton, modèle économique
+- [ ] Mise en place technique de la charte (tokens Tailwind, polices self-hostées, toggle thème clair/sombre)
+- [ ] Logo/wordmark Watodoo + favicon
+- [ ] Mentions légales + CGU minimales (avant toute ouverture publique, même en beta — voir `docs/decisions/design.md`)
 - [ ] CI/CD GitHub Actions → déploiement automatique sur le VPS (CI de tests en place ; déploiement auto à faire)
 - [ ] Structure de base du Caddyfile pour l'app réelle
 - [ ] Vérification email à l'inscription (dépend du choix d'un provider d'envoi d'email — reset password et autres emails transactionnels à regrouper avec ce choix)
@@ -52,7 +56,7 @@ Source de vérité de l'avancement produit, découpée en semaines indicatives.
 ## Semaine 7 — Polish
 - [ ] Page découverte (trending, nouveautés par catégorie)
 - [ ] SEO (react-helmet-async, meta tags, sitemap)
-- [ ] RGPD (mentions légales, cookies, suppression de compte)
+- [ ] RGPD (bannière cookies si besoin, suppression de compte — mentions légales/CGU déjà livrées en Semaine 1)
 - [ ] i18n (français / anglais)
 
 ## Semaine 8 — Stabilisation et déploiement
