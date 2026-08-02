@@ -7,6 +7,9 @@ cd "$repo_root"
 echo "→ dotnet test (unitaire + intégration + architecture)..."
 dotnet test --filter "FullyQualifiedName!~Functional"
 
+echo "→ pnpm lint + format:check (frontend)..."
+(cd frontend && pnpm lint && pnpm format:check)
+
 echo "→ pnpm test (frontend)..."
 (cd frontend && pnpm test)
 

@@ -15,7 +15,9 @@ describe('useAuthStore', () => {
   })
 
   it('setAuth marks the store authenticated', () => {
-    useAuthStore.getState().setAuth('token-123', { userId: 'u1', email: 'user@example.com' })
+    useAuthStore
+      .getState()
+      .setAuth('token-123', { userId: 'u1', email: 'user@example.com' })
 
     const state = useAuthStore.getState()
 
@@ -25,7 +27,9 @@ describe('useAuthStore', () => {
   })
 
   it('clear resets the store', () => {
-    useAuthStore.getState().setAuth('token-123', { userId: 'u1', email: 'user@example.com' })
+    useAuthStore
+      .getState()
+      .setAuth('token-123', { userId: 'u1', email: 'user@example.com' })
 
     useAuthStore.getState().clear()
 

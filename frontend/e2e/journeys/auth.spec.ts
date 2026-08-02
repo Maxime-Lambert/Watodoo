@@ -19,7 +19,9 @@ test('inscription puis déconnexion puis reconnexion', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Se déconnecter' }).click()
 
-  await expect(page.getByRole('heading', { name: 'Se connecter' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Se connecter' }),
+  ).toBeVisible()
 
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Mot de passe').fill(password)

@@ -74,10 +74,12 @@ code métier grandit.
 ## Enforcement
 
 - **Hook pre-push local** (`.githooks/pre-push`) : sous-ensemble rapide
-  (unitaire + intégration + architecture backend, unitaire frontend). Activer
-  une fois par clone : `git config core.hooksPath .githooks`.
-- **CI GitHub Actions** (`.github/workflows/ci.yml`) : suite complète sauf
-  mutation, bloquante sur les PR vers `develop` et `main`.
+  (unitaire + intégration + architecture backend, lint + format + unitaire
+  frontend). Activer une fois par clone : `git config core.hooksPath
+  .githooks`.
+- **CI GitHub Actions** (`.github/workflows/ci.yml`) : suite complète (incl.
+  lint + format frontend) sauf mutation, bloquante sur les PR vers `develop`
+  et `main`.
 - **Mutation testing** (`.github/workflows/mutation.yml`) : sur PR vers `main`
   uniquement, informatif (n'échoue pas le build).
 

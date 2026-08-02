@@ -16,7 +16,10 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-3">
+    <form
+      onSubmit={handleSubmit}
+      className="flex w-full max-w-sm flex-col gap-3"
+    >
       <h2 className="text-xl font-semibold">Se connecter</h2>
       <label className="flex flex-col gap-1 text-sm">
         Email
@@ -27,7 +30,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           onChange={(event) => {
             setEmail(event.target.value)
           }}
-          className="rounded-sm border border-border bg-surface px-3 py-2 text-foreground"
+          className="border-border bg-surface text-foreground rounded-sm border px-3 py-2"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
@@ -39,18 +42,24 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           onChange={(event) => {
             setPassword(event.target.value)
           }}
-          className="rounded-sm border border-border bg-surface px-3 py-2 text-foreground"
+          className="border-border bg-surface text-foreground rounded-sm border px-3 py-2"
         />
       </label>
-      {loginMutation.isError && <p className="text-sm text-red-600">{loginMutation.error.message}</p>}
+      {loginMutation.isError && (
+        <p className="text-sm text-red-600">{loginMutation.error.message}</p>
+      )}
       <button
         type="submit"
         disabled={loginMutation.isPending}
-        className="rounded-md bg-accent px-3 py-2 text-accent-foreground disabled:opacity-50"
+        className="bg-accent text-accent-foreground rounded-md px-3 py-2 disabled:opacity-50"
       >
         {loginMutation.isPending ? 'Connexion…' : 'Se connecter'}
       </button>
-      <button type="button" onClick={onSwitchToRegister} className="text-sm text-muted underline">
+      <button
+        type="button"
+        onClick={onSwitchToRegister}
+        className="text-muted text-sm underline"
+      >
         Pas de compte ? S'inscrire
       </button>
     </form>
