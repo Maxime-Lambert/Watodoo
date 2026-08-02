@@ -27,7 +27,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           onChange={(event) => {
             setEmail(event.target.value)
           }}
-          className="rounded border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+          className="rounded-sm border border-border bg-surface px-3 py-2 text-foreground"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
@@ -39,18 +39,18 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           onChange={(event) => {
             setPassword(event.target.value)
           }}
-          className="rounded border border-slate-300 px-3 py-2 dark:border-slate-700 dark:bg-slate-800"
+          className="rounded-sm border border-border bg-surface px-3 py-2 text-foreground"
         />
       </label>
       {registerMutation.isError && <p className="text-sm text-red-600">{registerMutation.error.message}</p>}
       <button
         type="submit"
         disabled={registerMutation.isPending}
-        className="rounded bg-slate-900 px-3 py-2 text-white disabled:opacity-50 dark:bg-white dark:text-slate-900"
+        className="rounded-md bg-accent px-3 py-2 text-accent-foreground disabled:opacity-50"
       >
         {registerMutation.isPending ? 'Création…' : "S'inscrire"}
       </button>
-      <button type="button" onClick={onSwitchToLogin} className="text-sm text-slate-500 underline">
+      <button type="button" onClick={onSwitchToLogin} className="text-sm text-muted underline">
         Déjà un compte ? Se connecter
       </button>
     </form>

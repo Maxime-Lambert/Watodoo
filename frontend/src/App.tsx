@@ -5,6 +5,7 @@ import { RegisterForm } from './features/auth/RegisterForm'
 import { useLogout } from './features/auth/hooks'
 import { useAuthStore } from './features/auth/store'
 import { useAuthBootstrap } from './features/auth/useAuthBootstrap'
+import { ThemeToggle } from './features/theme/ThemeToggle'
 
 function AuthenticatedView({ onLoggedOut }: { onLoggedOut: () => void }) {
   const user = useAuthStore((s) => s.user)
@@ -19,7 +20,7 @@ function AuthenticatedView({ onLoggedOut }: { onLoggedOut: () => void }) {
           onLoggedOut()
           logoutMutation.mutate()
         }}
-        className="rounded bg-slate-900 px-3 py-2 text-white dark:bg-white dark:text-slate-900"
+        className="bg-accent text-accent-foreground rounded-md px-3 py-2"
       >
         Se déconnecter
       </button>
@@ -37,10 +38,15 @@ function App() {
       <Helmet>
         <title>Watodoo</title>
       </Helmet>
-      <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
+      <main className="bg-background text-foreground relative flex min-h-screen flex-col items-center justify-center gap-6">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
         <div className="flex flex-col items-center gap-2">
-          <h1 className="text-3xl font-semibold">Watodoo</h1>
-          <p className="text-slate-500 dark:text-slate-400">En quelques clics, découvre quoi faire ce soir.</p>
+          <h1 className="font-display text-3xl font-semibold">Watodoo</h1>
+          <p className="text-muted">
+            En quelques clics, découvre quoi faire ce soir.
+          </p>
         </div>
         {isReady &&
           (isAuthenticated ? (
