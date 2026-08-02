@@ -68,6 +68,17 @@ function App() {
               }}
             />
           ))}
+        <footer className="text-muted absolute bottom-4 flex gap-4 text-xs">
+          <a
+            href="/mentions-legales.html"
+            className="hover:text-foreground underline"
+          >
+            Mentions légales
+          </a>
+          <a href="/cgu.html" className="hover:text-foreground underline">
+            CGU
+          </a>
+        </footer>
       </main>
     </>
   )

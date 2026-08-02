@@ -10,7 +10,7 @@ Source de vérité de l'avancement produit, découpée en semaines indicatives.
 - [x] Charte graphique définie (`docs/decisions/design.md`) — couleurs, typo, formes, icônes, ton, modèle économique
 - [x] Mise en place technique de la charte (tokens Tailwind, polices self-hostées, toggle thème clair/sombre)
 - [x] Logo/wordmark Watodoo + favicon
-- [ ] Mentions légales + CGU minimales (avant toute ouverture publique, même en beta — voir `docs/decisions/design.md`)
+- [x] Mentions légales + CGU minimales (avant toute ouverture publique, même en beta — voir `docs/decisions/design.md`)
 - [ ] CI/CD GitHub Actions → déploiement automatique sur le VPS (CI de tests en place ; déploiement auto à faire)
 - [ ] Structure de base du Caddyfile pour l'app réelle
 - [ ] Vérification email à l'inscription (dépend du choix d'un provider d'envoi d'email — reset password et autres emails transactionnels à regrouper avec ce choix)

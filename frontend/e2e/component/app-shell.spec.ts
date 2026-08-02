@@ -22,3 +22,19 @@ test('le thème sombre est actif par défaut et bascule vers le thème clair', a
     page.getByRole('button', { name: 'Activer le thème sombre' }),
   ).toBeVisible()
 })
+
+test('les pages légales sont accessibles depuis le footer', async ({
+  page,
+}) => {
+  await page.goto('/')
+
+  await page.getByRole('link', { name: 'Mentions légales' }).click()
+  await expect(page).toHaveTitle('Mentions légales — Watodoo')
+  await expect(
+    page.getByRole('heading', { name: 'Mentions légales' }),
+  ).toBeVisible()
+
+  await page.goto('/')
+  await page.getByRole('link', { name: 'CGU' }).click()
+  await expect(page).toHaveTitle("Conditions générales d'utilisation — Watodoo")
+})
