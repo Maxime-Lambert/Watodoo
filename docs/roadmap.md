@@ -8,8 +8,8 @@ Source de vérité de l'avancement produit, découpée en semaines indicatives.
 - [x] Docker Compose local fonctionnel (PostgreSQL + Redis)
 - [x] Authentification complète (inscription, connexion, JWT + refresh token rotatif)
 - [x] Charte graphique définie (`docs/decisions/design.md`) — couleurs, typo, formes, icônes, ton, modèle économique
-- [ ] Mise en place technique de la charte (tokens Tailwind, polices self-hostées, toggle thème clair/sombre)
-- [ ] Logo/wordmark Watodoo + favicon
+- [x] Mise en place technique de la charte (tokens Tailwind, polices self-hostées, toggle thème clair/sombre)
+- [x] Logo/wordmark Watodoo + favicon
 - [ ] Mentions légales + CGU minimales (avant toute ouverture publique, même en beta — voir `docs/decisions/design.md`)
 - [ ] CI/CD GitHub Actions → déploiement automatique sur le VPS (CI de tests en place ; déploiement auto à faire)
 - [ ] Structure de base du Caddyfile pour l'app réelle
