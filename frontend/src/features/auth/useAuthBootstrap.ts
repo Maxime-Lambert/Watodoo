@@ -16,7 +16,10 @@ export function useAuthBootstrap(): boolean {
       }
 
       if (result) {
-        setAuth(result.accessToken, { userId: result.userId, email: result.email })
+        setAuth(result.accessToken, {
+          userId: result.userId,
+          email: result.email,
+        })
       }
 
       setIsReady(true)

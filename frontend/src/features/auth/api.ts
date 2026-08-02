@@ -1,4 +1,6 @@
-const API_URL: string = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:5174'
+const API_URL: string =
+  (import.meta.env.VITE_API_URL as string | undefined) ??
+  'http://localhost:5174'
 
 export interface AuthResponse {
   userId: string
@@ -13,14 +15,21 @@ interface ProblemDetails {
 
 async function parseJsonOrThrow<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const problem = (await response.json().catch(() => null)) as ProblemDetails | null
-    throw new Error(problem?.detail ?? problem?.title ?? `Erreur ${String(response.status)}`)
+    const problem = (await response
+      .json()
+      .catch(() => null)) as ProblemDetails | null
+    throw new Error(
+      problem?.detail ?? problem?.title ?? `Erreur ${String(response.status)}`,
+    )
   }
 
   return (await response.json()) as T
 }
 
-export async function register(email: string, password: string): Promise<AuthResponse> {
+export async function register(
+  email: string,
+  password: string,
+): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/auth/register`, {
     method: 'POST',
     credentials: 'include',
@@ -31,7 +40,10 @@ export async function register(email: string, password: string): Promise<AuthRes
   return parseJsonOrThrow<AuthResponse>(response)
 }
 
-export async function login(email: string, password: string): Promise<AuthResponse> {
+export async function login(
+  email: string,
+  password: string,
+): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     credentials: 'include',

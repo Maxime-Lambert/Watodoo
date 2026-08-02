@@ -11,7 +11,8 @@ export function useRegister() {
   const setAuth = useAuthStore((s) => s.setAuth)
 
   return useMutation({
-    mutationFn: ({ email, password }: Credentials) => api.register(email, password),
+    mutationFn: ({ email, password }: Credentials) =>
+      api.register(email, password),
     onSuccess: (data) => {
       setAuth(data.accessToken, { userId: data.userId, email: data.email })
     },
@@ -22,7 +23,8 @@ export function useLogin() {
   const setAuth = useAuthStore((s) => s.setAuth)
 
   return useMutation({
-    mutationFn: ({ email, password }: Credentials) => api.login(email, password),
+    mutationFn: ({ email, password }: Credentials) =>
+      api.login(email, password),
     onSuccess: (data) => {
       setAuth(data.accessToken, { userId: data.userId, email: data.email })
     },

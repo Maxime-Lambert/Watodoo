@@ -16,7 +16,10 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-3">
+    <form
+      onSubmit={handleSubmit}
+      className="flex w-full max-w-sm flex-col gap-3"
+    >
       <h2 className="text-xl font-semibold">Créer un compte</h2>
       <label className="flex flex-col gap-1 text-sm">
         Email
@@ -27,7 +30,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           onChange={(event) => {
             setEmail(event.target.value)
           }}
-          className="rounded-sm border border-border bg-surface px-3 py-2 text-foreground"
+          className="border-border bg-surface text-foreground rounded-sm border px-3 py-2"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
@@ -39,18 +42,24 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           onChange={(event) => {
             setPassword(event.target.value)
           }}
-          className="rounded-sm border border-border bg-surface px-3 py-2 text-foreground"
+          className="border-border bg-surface text-foreground rounded-sm border px-3 py-2"
         />
       </label>
-      {registerMutation.isError && <p className="text-sm text-red-600">{registerMutation.error.message}</p>}
+      {registerMutation.isError && (
+        <p className="text-sm text-red-600">{registerMutation.error.message}</p>
+      )}
       <button
         type="submit"
         disabled={registerMutation.isPending}
-        className="rounded-md bg-accent px-3 py-2 text-accent-foreground disabled:opacity-50"
+        className="bg-accent text-accent-foreground rounded-md px-3 py-2 disabled:opacity-50"
       >
         {registerMutation.isPending ? 'Création…' : "S'inscrire"}
       </button>
-      <button type="button" onClick={onSwitchToLogin} className="text-sm text-muted underline">
+      <button
+        type="button"
+        onClick={onSwitchToLogin}
+        className="text-muted text-sm underline"
+      >
         Déjà un compte ? Se connecter
       </button>
     </form>
