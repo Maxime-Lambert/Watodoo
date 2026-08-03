@@ -64,23 +64,23 @@ set its status to `Complete` and write its **Phase Summary**; run the phase's
 **Verification Plan** and record the result before moving on.
 
 ## Phase 0: Prérequis infra (manuel, hors code)
-Status: Not started
+Status: Complete
 
-- [ ] Docker + plugin Docker Compose installés sur le VPS (vérifier :
+- [x] Docker + plugin Docker Compose installés sur le VPS (vérifier :
       `docker --version && docker compose version`, installer via
       `curl -fsSL https://get.docker.com | sh` si absent)
-- [ ] Utilisateur de déploiement `deploy` créé sur le VPS, ajouté au groupe
+- [x] Utilisateur de déploiement `deploy` créé sur le VPS, ajouté au groupe
       `docker` (`sudo usermod -aG docker deploy`)
-- [ ] Paire de clés SSH dédiée générée et clé publique copiée sur le VPS (déjà
+- [x] Paire de clés SSH dédiée générée et clé publique copiée sur le VPS (déjà
       guidé en conversation)
-- [ ] Répertoire `/opt/watodoo` créé sur le VPS, appartenant à `deploy`
+- [x] Répertoire `/opt/watodoo` créé sur le VPS, appartenant à `deploy`
       (`sudo mkdir -p /opt/watodoo && sudo chown deploy:deploy /opt/watodoo`)
-- [ ] GitHub environment `production` créé (Settings → Environments), restreint
+- [x] GitHub environment `production` créé (Settings → Environments), restreint
       à la branche `main`
-- [ ] Les 5 secrets + 1 variable listés ci-dessus configurés dans cet environment
-- [ ] Enregistrement DNS `A` du domaine pointant vers l'IP du VPS, propagation
+- [x] Les 5 secrets + 1 variable listés ci-dessus configurés dans cet environment
+- [x] Enregistrement DNS `A` du domaine pointant vers l'IP du VPS, propagation
       vérifiée (`dig +short <domaine>`)
-- [ ] Ports 80/443 ouverts sur le firewall du VPS (443 nécessaire pour Let's
+- [x] Ports 80/443 ouverts sur le firewall du VPS (443 nécessaire pour Let's
       Encrypt), port 22 restreint si possible
 
 ### Verification Plan
@@ -89,21 +89,25 @@ Status: Not started
   environnement s'il a accès réseau sortant.
 
 ### Phase Summary
-_(à écrire quand la phase est complète)_
+Checklist confirmée faite par l'utilisateur le 2026-08-03. Non re-vérifiée de
+façon autonome par l'agent (pas d'accès SSH au VPS ni le nom de domaine réel
+en contexte pour un `dig`). À confirmer réellement lors du premier run du job
+`deploy` (voir Deployment Plan) : si un item de cette liste est en fait
+incomplet, ce sera l'étape SSH ou le smoke test qui échouera en premier.
 
 ## Phase 1: Dockerisation backend
 Status: Complete
 
-- [ ] `Watodoo.Api/Dockerfile` — multi-stage `mcr.microsoft.com/dotnet/sdk:10.0`
+- [x] `Watodoo.Api/Dockerfile` — multi-stage `mcr.microsoft.com/dotnet/sdk:10.0`
       (build/publish) → `mcr.microsoft.com/dotnet/aspnet:10.0` (runtime). Le
       build context est la racine du repo (pas `Watodoo.Api/`) pour que
       `Directory.Build.props`/`Directory.Packages.props` (Central Package
       Management) soient trouvés par MSBuild — copier ces deux fichiers avant
       `Watodoo.Api/Watodoo.Api.csproj`, dans le même arbre relatif. `EXPOSE 8080`,
       `ENV ASPNETCORE_URLS=http://+:8080`.
-- [ ] `.dockerignore` à la racine : exclure `**/bin/`, `**/obj/`, `**/node_modules/`,
+- [x] `.dockerignore` à la racine : exclure `**/bin/`, `**/obj/`, `**/node_modules/`,
       `frontend/dist/`, `.git/`, `**/*.env`, `plans/`, `docs/`
-- [ ] `Watodoo.Api/Program.cs` : après `var app = builder.Build();`, ajouter
+- [x] `Watodoo.Api/Program.cs` : après `var app = builder.Build();`, ajouter
       migration auto en prod uniquement :
       ```csharp
       if (app.Environment.IsProduction())
