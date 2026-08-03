@@ -11,8 +11,8 @@ Source de vérité de l'avancement produit, découpée en semaines indicatives.
 - [x] Mise en place technique de la charte (tokens Tailwind, polices self-hostées, toggle thème clair/sombre)
 - [x] Logo/wordmark Watodoo + favicon
 - [x] Mentions légales + CGU minimales (avant toute ouverture publique, même en beta — voir `docs/decisions/design.md`)
-- [ ] CI/CD GitHub Actions → déploiement automatique sur le VPS (CI de tests en place ; déploiement auto à faire)
-- [ ] Structure de base du Caddyfile pour l'app réelle
+- [x] CI/CD GitHub Actions → déploiement automatique sur le VPS
+- [x] Structure de base du Caddyfile pour l'app réelle
 - [ ] Vérification email à l'inscription (dépend du choix d'un provider d'envoi d'email — reset password et autres emails transactionnels à regrouper avec ce choix)
 - [ ] Job Hangfire de nettoyage périodique des refresh tokens expirés/révoqués (suivi de la review sécurité de l'auth — pas bloquant, juste de l'accumulation en base)
 - [ ] Révocation en cascade des refresh tokens d'un utilisateur en cas de détection de réutilisation d'un token révoqué (durcissement anti-vol, écarté du MVP auth par décision produit)

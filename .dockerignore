@@ -1,0 +1,15 @@
+**/bin/
+**/obj/
+**/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+.git/
+.github/
+.claude/
+.githooks/
+**/*.env
+.env*
+plans/
+docs/
+*.md

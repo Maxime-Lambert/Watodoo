@@ -208,11 +208,31 @@ automatiques avant chaque déploiement en prod.
 (app + PostgreSQL + Redis). Un `docker-compose.prod.yml` pour la prod sur OVH VPS.
 
 ### Hébergement
-**Décision** : OVH VPS (3,99€/mois) avec Nginx reverse proxy + Let's Encrypt.
+**Décision** : OVH VPS (3,99€/mois) avec Caddy comme reverse proxy + HTTPS
+automatique (Let's Encrypt intégré, pas de certbot séparé à gérer).
 
 **Raison** : Railway/Render trop chers pour un projet multi-services (40-60€/mois
 estimé avec PostgreSQL + Redis + Hangfire). Le VPS offre un coût fixe et
 prévisible, et une expérience ops valorisable.
+
+**Architecture des conteneurs prod** (`docker-compose.prod.yml`) : un seul
+conteneur "edge" (`Dockerfile.edge`) fait à la fois reverse-proxy HTTPS et sert
+les fichiers statiques du frontend buildé — pas de conteneur nginx/caddy séparé
+pour le frontend, pour rester léger sur un VPS aux ressources limitées. Le
+frontend appelle l'API en chemin relatif (`/api/*`), proxyfié en interne vers
+`backend:8080` (avec `strip_prefix /api`, les routes backend n'ayant pas ce
+préfixe) — même origine, donc pas de CORS nécessaire pour le flux normal en
+prod. Postgres/Redis ne sont pas exposés sur l'hôte en prod (réseau Docker
+interne uniquement), contrairement au `docker-compose.yml` local.
+
+### Migrations en production
+**Décision** : les migrations EF Core s'appliquent automatiquement au démarrage
+du conteneur backend (`Database.Migrate()`, gated à `IsProduction()`), pas de
+job CI séparé.
+
+**Raison** : évite une étape de déploiement manuelle supplémentaire, acceptable
+pour une instance unique à faible trafic. À revoir si l'app scale un jour à
+plusieurs instances (migrations concurrentes = risque de conflit).
 
 ### Backup PostgreSQL
 **Stratégie** :
