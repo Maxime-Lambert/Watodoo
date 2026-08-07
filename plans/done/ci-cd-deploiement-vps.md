@@ -451,3 +451,50 @@ doit être créé et ajouté au secret GitHub `production`, et le mode SSL/TLS
 Cloudflare passé sur "Full (strict)" — sinon le job `deploy` échouera à
 l'étape d'obtention du certificat Let's Encrypt (challenge DNS-01 sans
 credentials valides).
+
+## Phase 8: Caddy système en conflit avec le conteneur edge (troisième blocage)
+Status: Complete
+
+Contexte : une fois les Phases 6 et 7 réglées, `rsync` + build Docker +
+démarrage `postgres`/`redis`/`backend` ont tous réussi pour la première fois
+(run réel du job `deploy`, merge PR #18). Échec final sur le conteneur
+`edge` : `failed to bind host port 0.0.0.0:80/tcp: address already in use`.
+Diagnostic (`sudo ss -tlnp | grep ':80\|:443'`) : un Caddy installé
+nativement sur le système (service `systemd`, hors Docker — probablement
+préinstallé ou installé manuellement lors du setup initial du VPS) occupait
+déjà les ports 80/443, en conflit avec le conteneur `edge` qui doit les
+posséder exclusivement.
+
+- [x] Diagnostiqué via `ss -tlnp` (pas de changement de code nécessaire)
+- [x] Service système `caddy` arrêté et désactivé par l'utilisateur
+      (`sudo systemctl stop caddy && sudo systemctl disable caddy`)
+- [x] Job `deploy` relancé (`gh run rerun --failed`, pas besoin d'un nouveau
+      commit — `docker compose up` est idempotent, seul le conteneur `edge`
+      manquait)
+
+### Verification Plan
+- Re-run du job `deploy` → toutes les étapes vertes, smoke test `/api/health`
+  passé
+
+### Phase Summary
+Après arrêt du Caddy système, le re-run du job `deploy` a réussi de bout en
+bout (rsync, build, 4 conteneurs démarrés, smoke test 200). Vérifié aussi
+depuis cet environnement : `curl https://watodoo.app/api/health` → `{"status":
+"ok"}`, `curl https://watodoo.app/` → 200, certificat HTTPS valide (émis par
+Google Trust Services — normal, c'est le certificat Cloudflare côté client
+puisque le domaine est proxifié ; Caddy obtient son propre certificat Let's
+Encrypt côté origine via DNS-01 pour le lien Cloudflare↔VPS en mode "Full
+strict"). Flux inscription + connexion testés en réel contre l'API prod
+(`POST /api/auth/register` → 201, `POST /api/auth/login` → 200, JWT émis) :
+confirme que le backend parle bien à Postgres en production et que les
+migrations EF Core se sont appliquées automatiquement au démarrage comme
+prévu (Phase 1).
+
+## Déploiement confirmé — 2026-08-07
+
+Premier déploiement réel en production réussi de bout en bout après 3 blocages
+trouvés et corrigés en conditions réelles (tag d'action GitHub obsolète,
+firewall SSH incompatible avec les IPs des runners, port 80 occupé par un
+service système). Les deux items roadmap Semaine 1 ("CI/CD GitHub Actions" et
+"Structure de base du Caddyfile") sont désormais réellement vérifiés en
+production, pas seulement en local. Plan archivé dans `plans/done/`.
