@@ -1,0 +1,17 @@
+{
+  "stryker-config": {
+    "project": "Watodoo.Api.csproj",
+    "test-projects": [
+      "../Watodoo.Tests/Watodoo.Tests.csproj"
+    ],
+    "thresholds": {
+      "high": 80,
+      "low": 60,
+      "break": 0
+    },
+    "reporters": [
+      "Progress",
+      "Html"
+    ]
+  }
+}

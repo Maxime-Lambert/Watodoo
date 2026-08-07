@@ -52,6 +52,8 @@
 - Le plan file est la source de vérité, pas la conversation
 
 ## Routing
+- Roadmap produit (checkboxes par semaine, à jour à chaque PR) : `docs/roadmap.md`
 - Plan actif : `plans/active-plan.md`
 - Décisions d'architecture : `docs/decisions/`
 - Guide migrations : `docs/migrations.md`
+- Stratégie de tests : `docs/testing-strategy.md`
