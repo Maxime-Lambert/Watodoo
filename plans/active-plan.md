@@ -378,6 +378,46 @@ Let's Encrypt via le vrai token Cloudflare et le vrai domaine (nécessite le
 secret `CLOUDFLARE_API_TOKEN` créé par l'utilisateur et un accès réseau au
 VPS/Cloudflare) — à vérifier au premier run réel du job `deploy`.
 
+## Phase 7: Port SSH dédié pour la CI (deuxième blocage du Deployment Plan)
+Status: Complete
+
+Contexte : premier run réel du job `deploy` (merge PR #16 sur `main`) —
+l'étape `easingthemes/ssh-deploy` a échoué avec `ssh: connect to host ***
+port 22: Connection timed out` (pas un refus d'authentification, un timeout —
+signe d'un firewall qui drop silencieusement). Confirmé par l'utilisateur :
+`ssh -i ~/.ssh/watodoo_deploy deploy@<IP>` se connecte sans problème depuis sa
+machine, mais pas depuis les runners GitHub Actions. Cause : port 22 restreint
+par IP côté firewall du VPS (durcissement volontaire de la Phase 0), or les
+runners GitHub Actions hébergés ont des IPs dynamiques impossibles à
+allowlister individuellement.
+
+Plutôt que d'ouvrir le port 22 à toutes les IPs (ce qui aurait annulé ce
+durcissement), l'utilisateur a ajouté un second port d'écoute `sshd` (2222,
+même authentification par clé, ouvert à toutes les IPs) en gardant le port 22
+restreint tel quel pour son accès personnel. Testé fonctionnel par
+l'utilisateur (`ssh -p 2222 ...` se connecte).
+
+- [x] `.github/workflows/ci.yml` : `REMOTE_PORT: 2222` ajouté à l'étape
+      `easingthemes/ssh-deploy` (rsync), `port: 2222` ajouté à l'étape
+      `appleboy/ssh-action` (écriture du `.env` + `docker compose up`)
+
+### Étapes manuelles faites par l'utilisateur (hors de portée de cet agent)
+- `sshd_config` : ajout d'une ligne `Port 2222` en plus du `Port 22` existant,
+  redémarrage de `sshd`
+- Firewall (`ufw`) : `2222/tcp` ouvert à toutes les IPs, `22/tcp` resté
+  restreint à l'IP personnelle de l'utilisateur
+
+### Verification Plan
+- Confirmé par l'utilisateur avant modification du code : connexion SSH sur
+  le port 2222 réussie depuis sa machine
+- Vérification complète (CI → VPS) au prochain run du job `deploy`
+
+### Phase Summary
+Modification de `ci.yml` appliquée (deux paramètres de port ajoutés, un par
+action SSH utilisée dans le job `deploy`). Connexion sur le port 2222
+pré-validée par l'utilisateur avant le changement de code, donc risque faible
+que ce point bloque à nouveau. Reste à confirmer au prochain run réel.
+
 ## Deployment Plan
 
 1. Vérifier que tous les items de la **Phase 0** (checklist manuelle) sont

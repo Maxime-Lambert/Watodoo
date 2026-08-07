@@ -78,6 +78,7 @@ jobs:
           TARGET: /opt/watodoo/
           EXCLUDE: ".git/, node_modules/, bin/, obj/, frontend/dist/, frontend/test-results/"
           ARGS: "-az --delete"
+          REMOTE_PORT: 2222
 
       - name: Écrire le .env de prod et déployer
         uses: appleboy/ssh-action@v1
@@ -90,6 +91,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          port: 2222
           envs: POSTGRES_PASSWORD,JWT_SIGNING_KEY,DOMAIN,CLOUDFLARE_API_TOKEN
           script: |
             set -euo pipefail
