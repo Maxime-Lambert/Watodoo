@@ -1,4 +1,8 @@
 {$DOMAIN} {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+
 	handle /api/* {
 		uri strip_prefix /api
 		reverse_proxy backend:8080

@@ -18,6 +18,15 @@ ARG VITE_API_URL=/api
 ENV VITE_API_URL=${VITE_API_URL}
 RUN pnpm build
 
+# Build Caddy custom avec le plugin DNS Cloudflare : nécessaire pour le
+# challenge Let's Encrypt en DNS-01, watodoo.app étant proxifié par Cloudflare
+# (le challenge HTTP-01 standard passe par le port 80, que Cloudflare peut
+# intercepter/rediriger avant qu'il atteigne l'origine — DNS-01 contourne ça
+# en prouvant la possession du domaine via un enregistrement TXT).
+FROM caddy:2-builder-alpine AS caddy-build
+RUN xcaddy build --with github.com/caddy-dns/cloudflare
+
 FROM caddy:2-alpine
+COPY --from=caddy-build /usr/bin/caddy /usr/bin/caddy
 COPY --from=build /app/frontend/dist /srv
 COPY Caddyfile /etc/caddy/Caddyfile

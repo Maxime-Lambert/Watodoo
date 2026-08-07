@@ -225,6 +225,17 @@ préfixe) — même origine, donc pas de CORS nécessaire pour le flux normal en
 prod. Postgres/Redis ne sont pas exposés sur l'hôte en prod (réseau Docker
 interne uniquement), contrairement au `docker-compose.yml` local.
 
+**DNS et Cloudflare** : `watodoo.app` est proxifié par Cloudflare (nuage
+orange) — le DNS pointe vers des IPs Cloudflare, pas directement vers le VPS.
+Conséquence : le challenge Let's Encrypt HTTP-01 par défaut de Caddy (port 80)
+n'est pas fiable derrière ce proxy. `Dockerfile.edge` build donc un binaire
+Caddy custom (via `xcaddy` + plugin `caddy-dns/cloudflare`) et `Caddyfile`
+utilise un challenge DNS-01 (`tls { dns cloudflare {env.CLOUDFLARE_API_TOKEN} }`),
+qui prouve la possession du domaine via un enregistrement TXT plutôt que par le
+trafic HTTP entrant — fonctionne indépendamment du proxy Cloudflare. Nécessite
+un token API Cloudflare scopé `Zone:DNS:Edit` sur la zone uniquement (secret
+`CLOUDFLARE_API_TOKEN`).
+
 ### Migrations en production
 **Décision** : les migrations EF Core s'appliquent automatiquement au démarrage
 du conteneur backend (`Database.Migrate()`, gated à `IsProduction()`), pas de
