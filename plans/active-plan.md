@@ -314,6 +314,70 @@ VPS ni à GitHub Actions) : le déclenchement réel du job `deploy`, la
 connexion SSH avec les vraies credentials, l'obtention d'un certificat Let's
 Encrypt pour le vrai domaine, le comportement de `rsync` vers le vrai VPS.
 
+## Phase 6: Cloudflare DNS-01 pour Caddy (blocage découvert pendant le Deployment Plan)
+Status: Complete
+
+Contexte : PR #12 mergée dans `develop`, PR #13 (`develop` → `main`) ouverte.
+En vérifiant la checklist de déploiement, `dig watodoo.app A +short` a renvoyé
+des IPs Cloudflare (`188.114.9x.x`, plage `188.114.96.0/20`) et non l'IP du
+VPS — le domaine est proxifié par Cloudflare (nuage orange). L'utilisateur a
+confirmé vouloir garder le proxy Cloudflare actif (test personnel). Le
+challenge HTTP-01 par défaut de Caddy pour Let's Encrypt n'est pas fiable
+derrière un proxy (le port 80 peut être intercepté/redirigé avant d'atteindre
+l'origine) → bascule sur un challenge DNS-01 via l'API Cloudflare, qui prouve
+la possession du domaine par un enregistrement TXT plutôt que par le trafic
+entrant, donc fonctionne indépendamment du proxy.
+
+- [x] `Dockerfile.edge` : nouveau stage `caddy:2-builder-alpine` qui build un
+      binaire Caddy custom via `xcaddy build --with github.com/caddy-dns/cloudflare`,
+      copié dans le stage final `caddy:2-alpine` (remplace le binaire par
+      défaut)
+- [x] `Caddyfile` : bloc `tls { dns cloudflare {env.CLOUDFLARE_API_TOKEN} }`
+      ajouté dans le site block `{$DOMAIN}`
+- [x] `docker-compose.prod.yml` : `CLOUDFLARE_API_TOKEN` ajouté aux variables
+      d'environnement du service `edge`
+- [x] `.env.prod.example` : `CLOUDFLARE_API_TOKEN=` ajouté avec commentaire
+      (token à créer sur dash.cloudflare.com/profile/api-tokens, template
+      "Edit zone DNS", scopé à la zone du domaine uniquement)
+- [x] `.github/workflows/ci.yml` (job `deploy`) : `CLOUDFLARE_API_TOKEN`
+      ajouté au même pattern que `POSTGRES_PASSWORD`/`JWT_SIGNING_KEY`/`DOMAIN`
+      (env, `envs:`, heredoc `.env`)
+- [x] `docs/decisions/architecture.md` : section "DNS et Cloudflare" ajoutée
+      sous "Hébergement", documente le choix DNS-01 et pourquoi
+
+### Hypothèses non confirmées par l'utilisateur (étapes manuelles hors de portée de cet agent)
+- Secret GitHub `CLOUDFLARE_API_TOKEN` à créer par l'utilisateur dans
+  l'environment `production` (token Cloudflare généré côté dashboard
+  Cloudflare, pas accessible depuis cet environnement)
+- Mode SSL/TLS Cloudflare recommandé sur "Full (strict)" dans le dashboard
+  Cloudflare (pas vérifiable/modifiable depuis cet agent)
+
+### Verification Plan
+- `docker build -f Dockerfile.edge -t watodoo-edge-cf --build-arg VITE_API_URL=/api .`
+  → succès (binaire Caddy custom avec le plugin Cloudflare compilé)
+- `docker run --rm watodoo-edge-cf caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile`
+  avec `DOMAIN`/`CLOUDFLARE_API_TOKEN` factices en env → pas d'erreur de syntaxe
+- Pas de vérification end-to-end possible (pas d'accès au VPS ni au vrai
+  compte Cloudflare depuis cet environnement) — à vérifier au premier run réel
+  du job `deploy`, une fois le secret `CLOUDFLARE_API_TOKEN` créé par
+  l'utilisateur et le SSL mode Cloudflare ajusté
+
+### Phase Summary
+`docker build -f Dockerfile.edge` réussi avec le stage `caddy:2-builder-alpine`
++ `xcaddy build --with github.com/caddy-dns/cloudflare` (Caddy v2.11.4, plugin
+Cloudflare compilé). `caddy validate` sur le Caddyfile résultant réussi avec un
+token Cloudflare factice de format valide (40 caractères alphanumériques) —
+un premier essai avec un token trivial (`dummy-token-for-validation`) a été
+rejeté par le provider Cloudflare dès la validation du format, confirmant que
+`caddy validate` instancie réellement le module DNS Cloudflare et vérifie la
+forme du token, pas seulement la syntaxe du Caddyfile. Résultat final :
+`Valid configuration`. Image de test supprimée après vérification.
+
+Non vérifiable depuis cet environnement : l'obtention réelle d'un certificat
+Let's Encrypt via le vrai token Cloudflare et le vrai domaine (nécessite le
+secret `CLOUDFLARE_API_TOKEN` créé par l'utilisateur et un accès réseau au
+VPS/Cloudflare) — à vérifier au premier run réel du job `deploy`.
+
 ## Deployment Plan
 
 1. Vérifier que tous les items de la **Phase 0** (checklist manuelle) sont
@@ -341,3 +405,9 @@ Encrypt pour le vrai domaine, le comportement de `rsync` vers le vrai VPS.
 7. Si tout est vert : cocher définitivement les deux items roadmap (déjà fait
    dans ce plan, à re-confirmer visuellement) et archiver ce plan dans
    `plans/done/`
+
+**Mise à jour Phase 6** : avant l'étape 6 ci-dessus, `CLOUDFLARE_API_TOKEN`
+doit être créé et ajouté au secret GitHub `production`, et le mode SSL/TLS
+Cloudflare passé sur "Full (strict)" — sinon le job `deploy` échouera à
+l'étape d'obtention du certificat Let's Encrypt (challenge DNS-01 sans
+credentials valides).
