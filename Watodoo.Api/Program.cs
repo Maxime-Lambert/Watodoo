@@ -121,6 +121,12 @@ if (app.Environment.IsDevelopment())
     app.MapHangfireDashboard();
 }
 
+if (app.Environment.IsProduction())
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<WatodooDbContext>().Database.Migrate();
+}
+
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapAuthEndpoints();
