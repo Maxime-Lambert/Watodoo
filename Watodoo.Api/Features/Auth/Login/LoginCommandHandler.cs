@@ -9,6 +9,7 @@ namespace Watodoo.Features.Auth.Login;
 public sealed class LoginCommandHandler(
     IValidator<LoginCommand> validator,
     UserManager<ApplicationUser> userManager,
+    SignInManager<ApplicationUser> signInManager,
     WatodooDbContext db,
     JwtTokenGenerator tokenGenerator)
 {
@@ -17,7 +18,18 @@ public sealed class LoginCommandHandler(
         await validator.ValidateAndThrowCustomAsync(command, ct);
 
         var user = await userManager.FindByEmailAsync(command.Email);
-        if (user is null || !await userManager.CheckPasswordAsync(user, command.Password))
+        if (user is null)
+        {
+            throw new UnauthorizedException("Email ou mot de passe incorrect.");
+        }
+
+        // lockoutOnFailure: true incrémente le compteur d'échecs et verrouille le compte après
+        // le seuil configuré (Lockout:MaxFailedAccessAttempts). Message générique même en cas de
+        // verrouillage : un email inexistant ne peut jamais atteindre cet état (sortie anticipée
+        // ci-dessus), donc distinguer "verrouillé" de "identifiants invalides" permettrait à un
+        // attaquant de savoir qu'un email correspond à un compte réel après quelques tentatives.
+        var result = await signInManager.CheckPasswordSignInAsync(user, command.Password, lockoutOnFailure: true);
+        if (!result.Succeeded)
         {
             throw new UnauthorizedException("Email ou mot de passe incorrect.");
         }

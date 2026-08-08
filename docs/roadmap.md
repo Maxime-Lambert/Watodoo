@@ -17,7 +17,8 @@ Source de vérité de l'avancement produit, découpée en semaines indicatives.
 - [x] Job Hangfire de nettoyage périodique des refresh tokens expirés/révoqués (suivi de la review sécurité de l'auth — pas bloquant, juste de l'accumulation en base)
 - [ ] Révocation en cascade des refresh tokens d'un utilisateur en cas de détection de réutilisation d'un token révoqué (durcissement anti-vol, écarté du MVP auth par décision produit)
 - [x] Partitionner le rate limiter `/auth` par IP (actuellement un compteur global — un seul client en rafale peut bloquer tout le monde, DoS facile à déclencher, à corriger avant prod)
-- [ ] Lockout de compte après échecs de connexion répétés (`UserManager.CheckPasswordAsync` ne l'active pas ; nécessite `SignInManager`/`CheckPasswordSignInAsync`)
+- [x] Lockout de compte après échecs de connexion répétés (`UserManager.CheckPasswordAsync` ne l'active pas ; nécessite `SignInManager`/`CheckPasswordSignInAsync`)
+- [ ] Durcissement anti-DoS du lockout de compte (un attaquant connaissant l'email d'une victime peut la verrouiller à volonté en changeant d'IP — CAPTCHA progressif et/ou rate limit par compte cible, notification email à l'utilisateur ; ce dernier point dépend du choix d'un provider d'email, cf. vérification email ci-dessus — risque accepté documenté dans `docs/decisions/architecture.md`, pas bloquant)
 
 ## Semaine 2 — Ingestion des données
 - [ ] Scripts d'ingestion TMDB (films + séries)

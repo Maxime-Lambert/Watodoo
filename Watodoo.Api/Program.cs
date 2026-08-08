@@ -39,13 +39,22 @@ builder.Services.AddHangfireServer();
 
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
+// Requis par SignInManager (voir plus bas) même si CheckPasswordSignInAsync ne l'utilise pas
+// directement : c'est une dépendance de son constructeur.
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
     options.Password.RequiredLength = 8;
     options.Password.RequireNonAlphanumeric = false;
+    options.Lockout.MaxFailedAccessAttempts = builder.Configuration.GetValue("Lockout:MaxFailedAccessAttempts", 5);
+    options.Lockout.DefaultLockoutTimeSpan =
+        TimeSpan.FromMinutes(builder.Configuration.GetValue("Lockout:DurationMinutes", 15));
 })
     .AddEntityFrameworkStores<WatodooDbContext>()
-    .AddDefaultTokenProviders();
+    .AddDefaultTokenProviders()
+    // AddIdentityCore (contrairement à AddIdentity) n'enregistre pas SignInManager par défaut.
+    .AddSignInManager();
 
 // ValidateOnStart : échoue au démarrage du host (avant toute requête HTTP) si la clé est
 // absente/trop courte, plutôt qu'à la première authentification. Fonctionne sous

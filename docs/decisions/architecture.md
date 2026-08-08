@@ -189,6 +189,46 @@ dossier `Jobs/` transversal), enregistrée en DI (`AddScoped`) et planifiée via
 plutôt que charger les entités en mémoire quand le job peut toucher beaucoup
 de lignes.
 
+### Lockout de compte après échecs de connexion répétés
+**Décision** : `LoginCommandHandler` utilise `SignInManager.CheckPasswordSignInAsync(user,
+password, lockoutOnFailure: true)` plutôt que `UserManager.CheckPasswordAsync` — verrouille le
+compte après `Lockout:MaxFailedAccessAttempts` échecs consécutifs (défaut 5),
+pour `Lockout:DurationMinutes` (défaut 15).
+
+**Raison** : `CheckPasswordAsync` seul ne compte jamais les échecs ni ne
+verrouille — un attaquant peut bruteforcer un mot de passe sans limite au-delà
+du rate limiter par IP (contournable en changeant d'IP, cf. décision
+ci-dessus). `AddIdentityCore` (utilisé ici, pas `AddIdentity`) n'enregistre
+pas `SignInManager` par défaut : ajouté explicitement via `.AddSignInManager()`,
+avec `IHttpContextAccessor` (dépendance de son constructeur) enregistré via
+`AddHttpContextAccessor()`.
+
+**Message d'erreur toujours générique**, y compris compte verrouillé (pas de
+message distinct type "réessaie dans 15 min") : un email inexistant ne peut
+jamais atteindre l'état verrouillé (le handler sort tôt si l'utilisateur
+n'existe pas, avant tout appel à `CheckPasswordSignInAsync`), donc un message
+distinct pour "verrouillé" révélerait qu'un email correspond à un compte réel
+après quelques tentatives — fuite d'énumération de comptes. Compromis assumé :
+l'utilisateur légitime ne sait pas explicitement qu'il est verrouillé, juste
+que son mot de passe est "refusé" même quand il est correct.
+
+**Comptes déjà existants en prod** : `LockoutOptions.AllowedForNewUsers` vaut
+`true` par défaut dans Identity (sans configuration explicite) — tous les
+comptes déjà enregistrés ont donc déjà `LockoutEnabled = true` en base depuis
+leur création, aucun backfill nécessaire.
+
+**Limite connue et acceptée** : un attaquant qui connaît l'email d'une
+victime (l'email est aussi l'identifiant de login) peut la verrouiller à
+volonté en envoyant `MaxFailedAccessAttempts` mots de passe faux, y compris
+en changeant d'IP pour contourner le rate limiter par IP — DoS ciblé contre
+un utilisateur légitime. Compromis inhérent à tout mécanisme de lockout par
+compte (même trade-off chez Auth0/Firebase), pas spécifique à cette
+implémentation ; non traité ici (mitigations possibles : CAPTCHA progressif,
+rate limit par compte cible en plus du rate limit par IP, notification email
+à l'utilisateur en cas de verrouillage — nécessite un provider d'email, déjà
+une dépendance non résolue pour la vérification d'email à l'inscription).
+Item roadmap ajouté pour ce durcissement futur.
+
 ---
 
 ## APIs externes (ingestion)
