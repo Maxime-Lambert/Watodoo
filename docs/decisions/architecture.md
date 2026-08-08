@@ -131,6 +131,41 @@ premier refresh légitime.
 **Raison** : complexité d'intégration OAuth non justifiée au stade MVP. À ajouter
 (Google, Discord) post-lancement si la demande existe.
 
+### Rate limiting `/auth` partitionné par IP client
+**Décision** : `AddPolicy("auth", ...)` avec un `FixedWindowLimiter` par IP
+(`RateLimitPartition.GetFixedWindowLimiter`), pas un compteur global unique.
+
+**Raison** : un compteur global permet à un seul client en rafale d'épuiser le
+quota et de bloquer tout le monde (DoS trivial à déclencher).
+
+**Implémentation** : le backend n'est jamais atteignable autrement que via le
+conteneur `edge` (Caddy) — en prod son port n'est pas publié sur l'hôte, donc
+n'importe quel appelant direct est de facto un proxy de confiance par
+construction réseau. `ForwardedHeadersMiddleware` est donc activé
+(`ForwardedHeaders.XForwardedFor`) avec `KnownIPNetworks`/`KnownProxies`
+vidés plutôt qu'une liste d'IP à maintenir. Chaîne réelle en prod : Client →
+Cloudflare → Caddy (`edge`) → backend. Cloudflare pose déjà
+`X-Forwarded-For` avec l'IP client réelle, puis Caddy y ajoute la sienne en
+relayant vers le backend (append, pas overwrite) : le header reçu a donc 2
+entrées, la plus à gauche étant le vrai client.
+
+`ForwardLimit = 2` (pas `null`/illimité) : avec `KnownIPNetworks`/
+`KnownProxies` vidés, le middleware ne valide plus du tout l'origine des
+entrées — un `ForwardLimit` illimité laisserait un client préfixer son
+propre header avec une IP forgée (`"faux-ip, vraie-ip, ip-cloudflare"`) pour
+changer de partition à volonté, y compris via le chemin normal (pas besoin de
+contourner Cloudflare — trouvé en revue sécurité). En ne consommant que les 2
+entrées les plus à droite (celles posées par Cloudflare et Caddy, jamais par
+le client), toute entrée forgée à gauche est ignorée.
+
+**Limite connue et acceptée** : si l'IP réelle du VPS fuitait et qu'un
+attaquant contactait Caddy directement en contournant Cloudflare (donc sans
+passer par les 2 sauts de confiance), il pourrait forger un
+`X-Forwarded-For` arbitraire et changer de partition à chaque requête,
+annulant l'effet du partitionnement — pas pire que l'absence totale de
+partitionnement d'avant cette décision, mais pas traité ici (mitigation
+possible : restreindre Caddy aux IP publiées par Cloudflare).
+
 ---
 
 ## APIs externes (ingestion)
