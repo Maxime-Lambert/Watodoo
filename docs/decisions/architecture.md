@@ -166,6 +166,29 @@ annulant l'effet du partitionnement — pas pire que l'absence totale de
 partitionnement d'avant cette décision, mais pas traité ici (mitigation
 possible : restreindre Caddy aux IP publiées par Cloudflare).
 
+### Nettoyage des refresh tokens expirés/révoqués
+**Décision** : job Hangfire récurrent (`CleanupExpiredRefreshTokensJob`,
+`Cron.Daily(3)`, 3h UTC) qui supprime en base les refresh tokens expirés ou
+révoqués (`RevokedAt != null || ExpiresAt <= UtcNow`), via `ExecuteDeleteAsync`
+(un seul `DELETE` SQL, pas de chargement en mémoire).
+
+**Raison** : sans ce job, les tokens révoqués (à chaque rotation, cf.
+"JWT + Refresh Token rotatif" ci-dessus) et expirés (90 jours) s'accumulent
+indéfiniment en base. Suppression immédiate à la révocation, sans période de
+grâce : la révocation en cascade sur détection de réutilisation d'un token
+révoqué est explicitement hors MVP, donc rien ne justifie de garder les
+tokens révoqués pour investigation. Fréquence quotidienne (volume faible,
+rien d'urgent), 3h pour ne pas tomber sur le backup PostgreSQL de 2h.
+
+**Convention posée pour les futurs jobs Hangfire** (premier job récurrent du
+projet — les prochains seront l'ingestion nightly de la Semaine 2) : classe
+du job dans `Features/<Domaine>/<NomJob>/`, comme un use case normal (pas de
+dossier `Jobs/` transversal), enregistrée en DI (`AddScoped`) et planifiée via
+`RecurringJob.AddOrUpdate<T>(...)` dans `Program.cs`. Privilégier
+`ExecuteDeleteAsync`/`ExecuteUpdateAsync` (bulk, un seul aller-retour SQL)
+plutôt que charger les entités en mémoire quand le job peut toucher beaucoup
+de lignes.
+
 ---
 
 ## APIs externes (ingestion)

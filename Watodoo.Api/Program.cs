@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Watodoo.Configuration;
 using Watodoo.Features.Auth;
+using Watodoo.Features.Auth.CleanupExpiredRefreshTokens;
 using Watodoo.Features.Auth.Login;
 using Watodoo.Features.Auth.Logout;
 using Watodoo.Features.Auth.Me;
@@ -134,6 +135,7 @@ builder.Services.AddScoped<LoginCommandHandler>();
 builder.Services.AddScoped<RefreshCommandHandler>();
 builder.Services.AddScoped<LogoutCommandHandler>();
 builder.Services.AddScoped<GetMeQueryHandler>();
+builder.Services.AddScoped<CleanupExpiredRefreshTokensJob>();
 
 var app = builder.Build();
 
@@ -153,6 +155,13 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     app.MapHangfireDashboard();
 }
+
+// Planifié à 3h du matin UTC, décalé du backup PostgreSQL (2h, voir architecture.md) — dans
+// tous les environnements (pas seulement prod) pour que le comportement soit identique en local.
+RecurringJob.AddOrUpdate<CleanupExpiredRefreshTokensJob>(
+    "cleanup-expired-refresh-tokens",
+    job => job.RunAsync(),
+    Cron.Daily(3));
 
 if (app.Environment.IsProduction())
 {
