@@ -15,6 +15,7 @@
     <PackageVersion Include="Hangfire.PostgreSql" Version="1.21.1" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.8.0" />
   </ItemGroup>
   <ItemGroup Label="Watodoo.Tests">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />

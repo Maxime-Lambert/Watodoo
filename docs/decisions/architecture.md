@@ -263,7 +263,99 @@ Les requêtes utilisateur frappent la base locale, pas les APIs externes.
 `title_fr`, `title_en` (idem pour `synopsis_fr`, `synopsis_en`).
 
 **Raison** : bien plus simple à gérer dès le schéma initial que de migrer après.
-TMDB et IGDB supportent `fr-FR` nativement.
+TMDB supporte `fr-FR` nativement (`language=fr-FR`/`en-US` sur les mêmes
+endpoints). **IGDB, en revanche, ne fournit aucun contenu par langue** (pas de
+`name_fr`/`summary_fr` — un seul `name`/`summary`, en anglais dans l'immense
+majorité des jeux) : voir "Ingestion IGDB" et "Enrichissement FR jeux vidéo"
+ci-dessous pour la façon dont `Game.TitleFr`/`SynopsisFr` sont malgré tout
+peuplés. Ancienne version de cette décision affirmait à tort que "TMDB et IGDB
+supportent le fr-FR nativement" — corrigé après vérification en implémentant
+l'ingestion IGDB (`plans/active-plan.md`).
+
+### Ingestion IGDB : OAuth2 client-credentials + rate limiting
+
+**Décision** : `IgdbClient` (`Shared/ExternalApis/Igdb/`) obtient un token
+d'accès via le flux OAuth2 client-credentials de Twitch (`POST
+https://id.twitch.tv/oauth2/token`), caché en mémoire et rafraîchi
+automatiquement par `IgdbTokenProvider` (marge de sécurité de 5 minutes avant
+expiration théorique, verrou pour éviter un rafraîchissement concurrent). Les
+requêtes vers `https://api.igdb.com/v4/` sont des `POST` avec un corps en
+langage Apicalypse (`fields ...; sort ...; limit ...; offset ...; where ...;`),
+pagination par `offset`/`limit` (jusqu'à 500 résultats par requête) plutôt que
+par numéro de page comme TMDB.
+
+**Raison** : IGDB n'expose pas de bearer token statique comme TMDB — c'est un
+vrai flux OAuth2 dont le token expire (théoriquement ~60 jours, mais non
+garanti). Un `Client-ID` + `Authorization: Bearer <token>` doivent être posés
+par requête (pas une seule fois au démarrage) puisque le token peut changer en
+cours de vie du process.
+
+**Rate limiting** : `IgdbRateLimitingHandler` (`DelegatingHandler` inséré dans
+le pipeline du `HttpClient` IGDB) garantit un intervalle minimum de 260ms entre
+deux requêtes sortantes, sous la limite documentée de 4 req/s. Sur un `401` de
+réponse, `IgdbClient` invalide le token en cache et retente une fois avant de
+laisser l'exception remonter (token révoqué avant expiration théorique).
+
+### Enrichissement FR jeux vidéo (Wikidata + Wikipédia)
+
+**Décision** : une passe séparée (`Features/Games/EnrichFrenchLocalization/`,
+job `EnrichGamesFrenchLocalizationJob`, planifié nightly après le refresh IGDB)
+va chercher un titre et un synopsis français réels pour chaque jeu, via
+Wikidata puis Wikipédia FR — jamais de traduction automatique du contenu
+anglais IGDB. Matching **par titre** (`WikidataClient.FindByTitleAsync`,
+recherche `action=wbsearchentities` sur le nom IGDB, jusqu'à 5 candidats),
+avec deux garde-fous avant d'accepter un candidat : il doit être une instance
+de "video game" (`P31 = Q7889`), et si l'un des deux côtés a une date de
+sortie, l'année doit concorder à ±1 an près (`P577` côté Wikidata contre
+`Game.ReleaseDate` côté IGDB) — sinon le prochain candidat est essayé. Le
+sitelink `fr.wikipedia.org` du candidat retenu donne le titre exact de
+l'article à interroger ensuite (`WikipediaClient`, extrait d'introduction via
+`action=query&prop=extracts&formatversion=2`). Chaque jeu porte
+`WikidataQid`/`FrenchEnrichedAt` (`Features/Games/Game.cs`) :
+`FrenchEnrichedAt` marque qu'une tentative a eu lieu (match trouvé ou non),
+pour ne jamais retraiter indéfiniment un jeu sans correspondance.
+
+**Historique de la décision** : la première version de ce design matchait par
+la propriété Wikidata dédiée "IGDB game ID" (`P5794`), pas par titre — choix
+initial motivé par la fiabilité d'un matching par ID (éviter les faux-matchs
+d'une recherche floue). **Abandonné après vérification réelle** : sur un
+échantillon de 300 jeux IGDB parmi les plus populaires (Zelda BOTW, GTA V, God
+of War...), seuls 2 avaient une valeur `P5794` renseignée sur Wikidata, et les
+deux étaient inexploitables (un item dont le `P5794` était une pure erreur de
+saisie pointant vers un jeu totalement différent ; un item "fantôme" sans
+label ni contenu réel). La propriété `P5794` s'est révélée trop peu utilisée
+sur Wikidata pour servir de mécanisme de matching primaire, y compris pour des
+jeux très connus. Remplacée par la recherche par titre + les deux garde-fous
+ci-dessus, qui reproduisent la fiabilité recherchée par le matching par ID
+sans dépendre de cette propriété quasi-vide.
+
+**Raison du choix Wikidata + Wikipédia (toujours valable)** : Steam (fiche
+boutique localisée, matching fiable par App ID) a été écarté — couverture
+insuffisante pour l'objectif du projet (jeux console, jeux anciens, jeux avec
+client propriétaire hors Steam). Une traduction automatique du contenu anglais
+aurait donné une couverture universelle mais pas un "vrai" titre/synopsis
+français, ce qui était le critère explicite retenu.
+
+**Résultat vérifié en conditions réelles** (300 jeux, vrais identifiants
+IGDB, `plans/active-plan.md`) : **295/300 jeux avec un titre/synopsis français
+authentique** trouvé et appliqué, qualité confirmée sur échantillon (ex.
+"Dragon Age : Inquisition" — espace insécable avant le `:`, typographie
+française correcte, synopsis entièrement en français et factuellement exact).
+Les 5 jeux sans correspondance sont des cas où le garde-fou année a
+correctement rejeté un faux-match probable (ex. "Doom" IGDB = le reboot 2016,
+mais le meilleur résultat de recherche Wikidata pour "Doom" est l'original de
+1993 — rejeté par l'écart d'année plutôt que silencieusement mal assigné).
+
+**Limite acceptée** : couverture non garantie à 100% par construction (jeu
+absent de Wikidata, sans sitelink FR, ou dont le seul candidat de recherche ne
+passe pas les garde-fous) — un jeu sans correspondance garde le contenu
+anglais IGDB en repli, jamais de champ vide, jamais retraité automatiquement
+ensuite.
+
+**Pattern probablement réutilisable** pour les futures catégories sans contenu
+FR natif (Jikan/anime, MangaDex/manga — à confirmer au moment de les
+implémenter), mais volontairement **pas abstrait maintenant** : à généraliser
+seulement si une deuxième catégorie en a effectivement besoin.
 
 ---
 
