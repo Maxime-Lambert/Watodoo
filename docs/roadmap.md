@@ -21,8 +21,8 @@ Source de vérité de l'avancement produit, découpée en semaines indicatives.
 - [ ] Durcissement anti-DoS du lockout de compte (un attaquant connaissant l'email d'une victime peut la verrouiller à volonté en changeant d'IP — CAPTCHA progressif et/ou rate limit par compte cible, notification email à l'utilisateur ; ce dernier point dépend du choix d'un provider d'email, cf. vérification email ci-dessus — risque accepté documenté dans `docs/decisions/architecture.md`, pas bloquant)
 
 ## Semaine 2 — Ingestion des données
-- [ ] Scripts d'ingestion TMDB (films + séries)
-- [ ] Scripts d'ingestion IGDB (jeux vidéo)
+- [ ] Scripts d'ingestion TMDB (films + séries) *(codé sur `feature/ingestion-tmdb`, non mergée — en pause en attendant l'approbation du compte TMDB)*
+- [x] Scripts d'ingestion IGDB (jeux vidéo)
 - [ ] Scripts d'ingestion Jikan (anime)
 - [ ] Scripts d'ingestion MangaDex (manga)
 - [ ] Scripts d'ingestion Google Books (livres)

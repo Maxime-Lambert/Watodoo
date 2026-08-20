@@ -87,12 +87,15 @@ jobs:
           JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
           DOMAIN: ${{ vars.DOMAIN }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          IGDB_CLIENT_ID: ${{ secrets.IGDB_CLIENT_ID }}
+          IGDB_CLIENT_SECRET: ${{ secrets.IGDB_CLIENT_SECRET }}
+          INGESTION_ADMIN_KEY: ${{ secrets.INGESTION_ADMIN_KEY }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 2222
-          envs: POSTGRES_PASSWORD,JWT_SIGNING_KEY,DOMAIN,CLOUDFLARE_API_TOKEN
+          envs: POSTGRES_PASSWORD,JWT_SIGNING_KEY,DOMAIN,CLOUDFLARE_API_TOKEN,IGDB_CLIENT_ID,IGDB_CLIENT_SECRET,INGESTION_ADMIN_KEY
           script: |
             set -euo pipefail
             cd /opt/watodoo
@@ -101,6 +104,9 @@ jobs:
             JWT_SIGNING_KEY=$JWT_SIGNING_KEY
             DOMAIN=$DOMAIN
             CLOUDFLARE_API_TOKEN=$CLOUDFLARE_API_TOKEN
+            IGDB_CLIENT_ID=$IGDB_CLIENT_ID
+            IGDB_CLIENT_SECRET=$IGDB_CLIENT_SECRET
+            INGESTION_ADMIN_KEY=$INGESTION_ADMIN_KEY
             ENVEOF
             chmod 600 .env
             docker compose -f docker-compose.prod.yml up -d --build

@@ -27,6 +27,9 @@ public sealed class AuthRateLimitingTestFixture : IAsyncLifetime
                     ["Jwt:Issuer"] = "Watodoo.Tests",
                     ["Jwt:Audience"] = "Watodoo.Tests",
                     ["Jwt:SigningKey"] = "test-only-signing-key-1234567890-abcdefghijkl",
+                    ["Igdb:ClientId"] = "test-only-igdb-client-id",
+                    ["Igdb:ClientSecret"] = "test-only-igdb-client-secret",
+                    ["Ingestion:AdminKey"] = "test-only-admin-key-1234567890",
                     ["Cors:AllowedOrigins:0"] = "http://localhost:5173",
                     // Limite volontairement basse (contrairement à FunctionalTestFixture qui la relève) :
                     // ces tests vérifient le comportement exact au seuil du rate limiter.

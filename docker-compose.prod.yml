@@ -45,6 +45,9 @@ services:
       Jwt__Audience: Watodoo
       Jwt__SigningKey: ${JWT_SIGNING_KEY}
       Cors__AllowedOrigins__0: "https://${DOMAIN}"
+      Igdb__ClientId: ${IGDB_CLIENT_ID}
+      Igdb__ClientSecret: ${IGDB_CLIENT_SECRET}
+      Ingestion__AdminKey: ${INGESTION_ADMIN_KEY}
 
   edge:
     build:

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Watodoo.Configuration;
 using Watodoo.Features.Auth;
@@ -17,8 +18,15 @@ using Watodoo.Features.Auth.Logout;
 using Watodoo.Features.Auth.Me;
 using Watodoo.Features.Auth.Refresh;
 using Watodoo.Features.Auth.Register;
+using Watodoo.Features.Games;
+using Watodoo.Features.Games.EnrichFrenchLocalization;
+using Watodoo.Features.Games.IngestFromIgdb;
 using Watodoo.Middleware;
 using Watodoo.Shared.Data;
+using Watodoo.Shared.ExternalApis.Igdb;
+using Watodoo.Shared.ExternalApis.Wikidata;
+using Watodoo.Shared.ExternalApis.Wikipedia;
+using Watodoo.Shared.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,6 +74,59 @@ builder.Services.AddOptions<JwtOptions>()
         o => !string.IsNullOrWhiteSpace(o.SigningKey) && Encoding.UTF8.GetByteCount(o.SigningKey) >= 32,
         "Jwt:SigningKey doit être configurée (dotnet user-secrets en local) et faire au moins 32 octets (256 bits) pour HS256.")
     .ValidateOnStart();
+
+builder.Services.AddOptions<IngestionOptions>()
+    .BindConfiguration("Ingestion")
+    .Validate(o => !string.IsNullOrWhiteSpace(o.AdminKey) && o.AdminKey.Length >= 16,
+        "Ingestion:AdminKey doit être configurée (dotnet user-secrets en local) et faire au moins 16 caractères.")
+    .ValidateOnStart();
+
+builder.Services.AddOptions<IgdbOptions>()
+    .BindConfiguration("Igdb")
+    .Validate(o => !string.IsNullOrWhiteSpace(o.ClientId), "Igdb:ClientId doit être configuré (dotnet user-secrets en local).")
+    .Validate(o => !string.IsNullOrWhiteSpace(o.ClientSecret), "Igdb:ClientSecret doit être configuré (dotnet user-secrets en local).")
+    .Validate(o => o.SeedMaxItems > 0, "Igdb:SeedMaxItems doit être strictement positif.")
+    .Validate(o => o.NightlyLookbackDays > 0, "Igdb:NightlyLookbackDays doit être strictement positif.")
+    .ValidateOnStart();
+
+builder.Services.AddOptions<GamesOptions>()
+    .BindConfiguration("Games")
+    .Validate(o => o.FrenchEnrichmentBatchSize > 0, "Games:FrenchEnrichmentBatchSize doit être strictement positif.")
+    .ValidateOnStart();
+
+builder.Services.AddTransient<AdminKeyEndpointFilter>();
+
+builder.Services.AddTransient<IgdbRateLimitingHandler>();
+
+builder.Services.AddHttpClient<IIgdbTokenProvider, IgdbTokenProvider>(client =>
+{
+    client.BaseAddress = new Uri("https://id.twitch.tv/");
+});
+
+builder.Services.AddHttpClient<IIgdbClient, IgdbClient>(client =>
+{
+    client.BaseAddress = new Uri("https://api.igdb.com/v4/");
+})
+    .AddHttpMessageHandler<IgdbRateLimitingHandler>()
+    .AddStandardResilienceHandler();
+
+// Ni Wikidata ni Wikipédia n'imposent de limite comparable à IGDB (4 req/s) : pas de handler de
+// rate limiting dédié pour ces deux clients.
+builder.Services.AddHttpClient<IWikidataClient, WikidataClient>(client =>
+{
+    client.BaseAddress = new Uri("https://www.wikidata.org/");
+    // Exigé par la politique d'accès Wikimedia (User-Agent descriptif obligatoire, jamais de requête
+    // anonyme sans contact) : https://meta.wikimedia.org/wiki/User-Agent_policy.
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Watodoo/1.0 (+https://watodoo.app)");
+})
+    .AddStandardResilienceHandler();
+
+builder.Services.AddHttpClient<IWikipediaClient, WikipediaClient>(client =>
+{
+    client.BaseAddress = new Uri("https://fr.wikipedia.org/");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Watodoo/1.0 (+https://watodoo.app)");
+})
+    .AddStandardResilienceHandler();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -145,6 +206,8 @@ builder.Services.AddScoped<RefreshCommandHandler>();
 builder.Services.AddScoped<LogoutCommandHandler>();
 builder.Services.AddScoped<GetMeQueryHandler>();
 builder.Services.AddScoped<CleanupExpiredRefreshTokensJob>();
+builder.Services.AddScoped<IngestGamesFromIgdbJob>();
+builder.Services.AddScoped<EnrichGamesFrenchLocalizationJob>();
 
 var app = builder.Build();
 
@@ -172,6 +235,25 @@ RecurringJob.AddOrUpdate<CleanupExpiredRefreshTokensJob>(
     job => job.RunAsync(),
     Cron.Daily(3));
 
+// 4h UTC, après le nettoyage des refresh tokens (3h) : uniquement les sorties récentes
+// (Igdb:NightlyLookbackDays), pas de repasse sur la popularité — voir plans/active-plan.md. Le seed
+// en gros volume n'est pas planifié ici, seulement déclenché à la demande via
+// POST /internal/ingestion/games/igdb.
+RecurringJob.AddOrUpdate<IngestGamesFromIgdbJob>(
+    "refresh-games-from-igdb",
+    job => job.RefreshNightlyAsync(),
+    Cron.Daily(4));
+
+// 5h UTC, après le refresh des jeux (4h) : dépend des jeux déjà en base pour avoir quelque chose à
+// enrichir. Traite un lot borné par nuit (Games:FrenchEnrichmentBatchSize), un gros backlog se
+// rattrape sur plusieurs nuits. Lu via IOptions (pas app.Configuration.GetValue) pour ne pas dupliquer
+// la valeur par défaut déjà posée sur GamesOptions.
+var gamesOptions = app.Services.GetRequiredService<IOptions<GamesOptions>>().Value;
+RecurringJob.AddOrUpdate<EnrichGamesFrenchLocalizationJob>(
+    "enrich-games-french-localization",
+    job => job.RunAsync(gamesOptions.FrenchEnrichmentBatchSize),
+    Cron.Daily(5));
+
 if (app.Environment.IsProduction())
 {
     using var scope = app.Services.CreateScope();
@@ -181,6 +263,7 @@ if (app.Environment.IsProduction())
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapAuthEndpoints();
+app.MapGamesEndpoints();
 
 app.Run();
 
