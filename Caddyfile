@@ -1,8 +1,6 @@
-{$DOMAIN} {
-	tls {
-		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
-	}
-
+# TLS terminé par la passerelle Caddy partagée du VPS (/opt/gateway) :
+# ce conteneur ne sert que du HTTP interne sur le réseau Docker `gateway`.
+:80 {
 	handle /api/* {
 		uri strip_prefix /api
 		reverse_proxy backend:8080
