@@ -406,25 +406,49 @@ estimé avec PostgreSQL + Redis + Hangfire). Le VPS offre un coût fixe et
 prévisible, et une expérience ops valorisable.
 
 **Architecture des conteneurs prod** (`docker-compose.prod.yml`) : un seul
-conteneur "edge" (`Dockerfile.edge`) fait à la fois reverse-proxy HTTPS et sert
-les fichiers statiques du frontend buildé — pas de conteneur nginx/caddy séparé
-pour le frontend, pour rester léger sur un VPS aux ressources limitées. Le
-frontend appelle l'API en chemin relatif (`/api/*`), proxyfié en interne vers
+conteneur "edge" (`Dockerfile.edge`) sert de reverse-proxy et sert les fichiers
+statiques du frontend buildé — pas de conteneur nginx/caddy séparé pour le
+frontend, pour rester léger sur un VPS aux ressources limitées. Le frontend
+appelle l'API en chemin relatif (`/api/*`), proxyfié en interne vers
 `backend:8080` (avec `strip_prefix /api`, les routes backend n'ayant pas ce
 préfixe) — même origine, donc pas de CORS nécessaire pour le flux normal en
 prod. Postgres/Redis ne sont pas exposés sur l'hôte en prod (réseau Docker
 interne uniquement), contrairement au `docker-compose.yml` local.
 
+**Passerelle Caddy partagée du VPS** : ce VPS héberge désormais aussi un
+second projet personnel (Ageguessr). Un seul processus peut écouter sur les
+ports 80/443 d'une machine — deux projets ne peuvent donc plus chacun exposer
+directement leur conteneur "edge" comme avant. La solution retenue est une
+passerelle Caddy unique au niveau du VPS (`/opt/gateway/`, en dehors de tout
+repo Git — c'est de l'infra partagée entre projets, pas le code de l'un
+d'eux), seule à publier 80/443 et seule à terminer le TLS, qui route par nom
+de domaine vers le conteneur `edge` de chaque projet via un réseau Docker
+externe partagé nommé `gateway`.
+
+Conséquence sur ce repo : le conteneur `edge` de Watodoo ne termine plus le
+TLS et n'est plus jamais publié sur un port hôte — il écoute en HTTP simple
+(`:80` dans le `Caddyfile`, plus `{$DOMAIN}`) sur le réseau `gateway`, que
+seule la passerelle lui parle. `Dockerfile.edge` n'a donc plus besoin du
+binaire Caddy custom (`xcaddy` + plugin `caddy-dns/cloudflare`) : le challenge
+DNS-01 et le certificat Let's Encrypt sont désormais gérés une seule fois par
+la passerelle, pas par chaque projet. Le secret `CLOUDFLARE_API_TOKEN` et les
+volumes `caddy_data`/`caddy_config` sont donc retirés du `docker-compose.prod.yml`
+de ce repo (ils vivent maintenant côté passerelle, sur le VPS, hors de tout
+repo). Aucun partage de code, de base de données ni de configuration
+applicative entre projets — uniquement le point d'entrée réseau, qui est par
+nature une ressource unique par machine.
+
 **DNS et Cloudflare** : `watodoo.app` est proxifié par Cloudflare (nuage
 orange) — le DNS pointe vers des IPs Cloudflare, pas directement vers le VPS.
 Conséquence : le challenge Let's Encrypt HTTP-01 par défaut de Caddy (port 80)
-n'est pas fiable derrière ce proxy. `Dockerfile.edge` build donc un binaire
-Caddy custom (via `xcaddy` + plugin `caddy-dns/cloudflare`) et `Caddyfile`
-utilise un challenge DNS-01 (`tls { dns cloudflare {env.CLOUDFLARE_API_TOKEN} }`),
-qui prouve la possession du domaine via un enregistrement TXT plutôt que par le
-trafic HTTP entrant — fonctionne indépendamment du proxy Cloudflare. Nécessite
-un token API Cloudflare scopé `Zone:DNS:Edit` sur la zone uniquement (secret
-`CLOUDFLARE_API_TOKEN`).
+n'est pas fiable derrière ce proxy. C'est pourquoi la passerelle (et non plus
+ce repo) build un binaire Caddy custom (via `xcaddy` + plugin
+`caddy-dns/cloudflare`) et utilise un challenge DNS-01
+(`tls { dns cloudflare {env.CLOUDFLARE_API_TOKEN} }`), qui prouve la
+possession du domaine via un enregistrement TXT plutôt que par le trafic HTTP
+entrant — fonctionne indépendamment du proxy Cloudflare. Nécessite un token
+API Cloudflare scopé `Zone:DNS:Edit` sur la zone uniquement (secret
+`CLOUDFLARE_API_TOKEN`, désormais détenu par la passerelle).
 
 ### Migrations en production
 **Décision** : les migrations EF Core s'appliquent automatiquement au démarrage
